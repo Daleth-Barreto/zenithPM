@@ -86,7 +86,7 @@ const statusMap: Record<TaskStatus, string> = {
 }
 
 export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: TaskDetailsSheetProps) {
-  const [currentTask, setCurrentTask] = useState<Task | null>(task);
+  const [editableTask, setEditableTask] = useState<Task | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -99,22 +99,15 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
 
   const { toast } = useToast();
   const { user } = useAuth();
-  const debouncedSaveRef = useRef<NodeJS.Timeout>();
-
+  
   const canEdit = user && project.team.find(m => m.id === user.uid)?.role === 'Admin';
+  const currentTask = isEditing && editableTask ? editableTask : task;
 
   useEffect(() => {
-    // Reset editing state when a new task is passed in
-    if (task) {
-      setCurrentTask(task);
-      setIsEditing(false);
-      
-      // Fetch assigned team details if any
-      if (task.assignedTeamId) {
-        getTeamById(task.assignedTeamId).then(setAssignedTeam);
-      } else {
-        setAssignedTeam(null);
-      }
+    if (task && task.assignedTeamId) {
+      getTeamById(task.assignedTeamId).then(setAssignedTeam);
+    } else {
+      setAssignedTeam(null);
     }
   }, [task]);
 
@@ -131,30 +124,16 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
   }, [project.associatedTeamIds]);
 
 
-  const saveTask = useCallback(async (taskToSave: Task) => {
-    if (!canEdit) return;
-    const { id, ...taskData } = taskToSave;
-    await updateTask(project.id, id, taskData);
-  }, [project.id, canEdit]);
-  
-  const handleDebouncedSave = useCallback((updatedTask: Task) => {
-    if (debouncedSaveRef.current) {
-      clearTimeout(debouncedSaveRef.current);
-    }
-    debouncedSaveRef.current = setTimeout(() => saveTask(updatedTask), 1000);
-  }, [saveTask]);
-
-
   if (!currentTask) return null;
 
   const handleFieldChange = (field: keyof Task, value: any) => {
-    const updatedTask = { ...currentTask, [field]: value };
-    setCurrentTask(updatedTask);
-    onUpdate(updatedTask); // Immediately update parent state for reactivity
-    handleDebouncedSave(updatedTask);
+    if (!isEditing || !editableTask) return;
+    const updatedTask = { ...editableTask, [field]: value };
+    setEditableTask(updatedTask);
   }
 
   const handleAssigneeChange = (value: string) => {
+    if (!isEditing) return;
     if (value.startsWith('user-')) {
         const memberId = value.replace('user-', '');
         const assignee = project.team.find(m => m.id === memberId);
@@ -171,31 +150,33 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
   }
   
   const handleSubtaskStatusChange = (subtaskId: string, status: SubtaskStatus) => {
-    const updatedSubtasks = currentTask.subtasks?.map(st =>
+    if (!isEditing || !editableTask) return;
+    const updatedSubtasks = editableTask.subtasks?.map(st =>
       st.id === subtaskId ? { ...st, status } : st
     );
     handleFieldChange('subtasks', updatedSubtasks);
   };
   
   const handleAddSubtask = () => {
-    if (!newSubtaskTitle.trim() || !currentTask) return;
+    if (!newSubtaskTitle.trim() || !isEditing || !editableTask) return;
     const newSubtask: Subtask = {
       id: new Date().getTime().toString(),
       title: newSubtaskTitle,
       status: 'pending',
     };
-    const updatedSubtasks = [...(currentTask.subtasks || []), newSubtask];
+    const updatedSubtasks = [...(editableTask.subtasks || []), newSubtask];
     handleFieldChange('subtasks', updatedSubtasks);
     setNewSubtaskTitle('');
   };
   
   const handleDeleteSubtask = (subtaskId: string) => {
-    const updatedSubtasks = currentTask.subtasks?.filter(st => st.id !== subtaskId);
+    if (!isEditing || !editableTask) return;
+    const updatedSubtasks = editableTask.subtasks?.filter(st => st.id !== subtaskId);
     handleFieldChange('subtasks', updatedSubtasks);
   }
 
   const handleAddComment = async () => {
-    if (!newComment.trim() || !currentTask || !user) return;
+    if (!newComment.trim() || !task || !user) return;
     
     const commentData: Omit<Comment, 'id' | 'createdAt'> = {
         text: newComment,
@@ -207,7 +188,7 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
       commentData.authorAvatarUrl = user.photoURL;
     }
 
-    await addCommentToTask(project.id, currentTask.id, commentData);
+    await addCommentToTask(project.id, task.id, commentData);
     setNewComment('');
   }
 
@@ -222,9 +203,9 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
   }
 
   const handleUpdateComment = async () => {
-    if (!editingCommentId || !currentTask) return;
+    if (!editingCommentId || !task) return;
     try {
-        await updateCommentInTask(project.id, currentTask.id, editingCommentId, editingCommentText);
+        await updateCommentInTask(project.id, task.id, editingCommentId, editingCommentText);
         handleCancelEditComment();
         toast({ title: "Comentario actualizado" });
     } catch (error) {
@@ -234,9 +215,9 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
   }
 
   const handleDeleteComment = async (commentId: string) => {
-      if (!currentTask) return;
+      if (!task) return;
       try {
-        await deleteCommentFromTask(project.id, currentTask.id, commentId);
+        await deleteCommentFromTask(project.id, task.id, commentId);
         toast({ title: "Comentario eliminado" });
       } catch (error) {
         console.error("Error deleting comment:", error);
@@ -244,19 +225,23 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
       }
   }
 
+  const handleStartEditing = () => {
+    setEditableTask(JSON.parse(JSON.stringify(task))); // Deep copy
+    setIsEditing(true);
+  }
+
   const handleSaveAndClose = async () => {
-    if (!currentTask || !canEdit) return;
-    if (debouncedSaveRef.current) {
-      clearTimeout(debouncedSaveRef.current);
-    }
+    if (!editableTask || !canEdit) return;
     setIsSaving(true);
     try {
-        await saveTask(currentTask);
-        onUpdate(currentTask); 
+        const { id, ...taskData } = editableTask;
+        await updateTask(project.id, id, taskData);
+        onUpdate(editableTask); 
         setIsEditing(false); // Go back to view mode
+        setEditableTask(null);
         toast({
             title: 'Tarea Actualizada',
-            description: `Se han guardado los cambios para "${currentTask.title}".`
+            description: `Se han guardado los cambios para "${editableTask.title}".`
         })
     } catch (error) {
         console.error("Error saving task:", error);
@@ -271,13 +256,13 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
   }
 
   const handleDelete = async () => {
-    if(!currentTask || !canEdit) return;
+    if(!task || !canEdit) return;
     setIsDeleting(true);
      try {
-        await deleteTask(project.id, currentTask.id);
+        await deleteTask(project.id, task.id);
         toast({
             title: 'Tarea Eliminada',
-            description: `Se ha eliminado la tarea "${currentTask.title}".`
+            description: `Se ha eliminado la tarea "${task.title}".`
         });
         onClose();
     } catch (error) {
@@ -293,16 +278,20 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
   }
   
   const handleCancelEdit = () => {
-      setCurrentTask(task); // Revert changes to original task state
+      setEditableTask(null);
       setIsEditing(false);
   }
+
+  const sortedComments = [...(task?.comments || [])].sort(
+    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+  );
   
   const renderViewMode = () => (
       <>
         <div className="flex-1 overflow-y-auto pr-6 -mr-6 pl-1 -ml-1">
             <div className="space-y-6 py-4">
-                {currentTask.description ? (
-                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{currentTask.description}</p>
+                {task?.description ? (
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{task.description}</p>
                 ) : (
                     <p className="text-sm text-muted-foreground italic">No hay descripción para esta tarea.</p>
                 )}
@@ -313,13 +302,13 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
                     <div className="flex items-center gap-2 text-sm">
                         <User className="h-4 w-4 text-muted-foreground" />
                         <span className="font-medium">Asignado a:</span>
-                        {currentTask.assignee ? (
+                        {task?.assignee ? (
                             <div className="flex items-center gap-2">
                                 <Avatar className="h-6 w-6">
-                                    <AvatarImage src={currentTask.assignee.avatarUrl} />
-                                    <AvatarFallback>{currentTask.assignee.initials}</AvatarFallback>
+                                    <AvatarImage src={task.assignee.avatarUrl} />
+                                    <AvatarFallback>{task.assignee.initials}</AvatarFallback>
                                 </Avatar>
-                                <span>{currentTask.assignee.name}</span>
+                                <span>{task.assignee.name}</span>
                             </div>
                         ) : assignedTeam ? (
                             <div className="flex items-center gap-2">
@@ -334,28 +323,28 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
                      <div className="flex items-center gap-2 text-sm">
                         <AlertCircle className="h-4 w-4 text-muted-foreground" />
                         <span className="font-medium">Prioridad:</span>
-                        <Badge variant="outline" className="capitalize">{currentTask.priority}</Badge>
+                        <Badge variant="outline" className="capitalize">{task?.priority}</Badge>
                     </div>
 
                     <div className="flex items-center gap-2 text-sm">
                         <Tag className="h-4 w-4 text-muted-foreground" />
                         <span className="font-medium">Estado:</span>
-                        <span>{statusMap[currentTask.status]}</span>
+                        <span>{task && statusMap[task.status]}</span>
                     </div>
 
                      <div className="flex items-center gap-2 text-sm">
                         <CalendarIcon className="h-4 w-4 text-muted-foreground" />
                         <span className="font-medium">Fecha Límite:</span>
-                        <span>{currentTask.dueDate ? format(new Date(currentTask.dueDate), 'PPP', { locale: es }) : <span className="text-muted-foreground italic">No definida</span>}</span>
+                        <span>{task?.dueDate ? format(new Date(task.dueDate), 'PPP', { locale: es }) : <span className="text-muted-foreground italic">No definida</span>}</span>
                     </div>
                 </div>
 
-                {currentTask.subtasks && currentTask.subtasks.length > 0 && (
+                {task?.subtasks && task.subtasks.length > 0 && (
                      <>
                         <Separator />
                         <div className="space-y-3">
                             <Label>Subtareas</Label>
-                             {currentTask.subtasks.map(subtask => (
+                             {task.subtasks.map(subtask => (
                                 <div key={subtask.id} className="flex items-center gap-3">
                                 <Checkbox
                                     id={`subtask-view-${subtask.id}`}
@@ -385,7 +374,7 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
                     Comentarios
                   </Label>
                   <div className="space-y-4">
-                    {[...(currentTask.comments || [])].sort((a,b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()).map(comment => (
+                    {sortedComments.map(comment => (
                         <div key={comment.id} className="flex gap-3 group">
                         <Avatar>
                             <AvatarImage src={comment.authorAvatarUrl} />
@@ -428,7 +417,7 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
                         </div>
                     ))}
 
-                     {(!currentTask.comments || currentTask.comments.length === 0) && (
+                     {(!task?.comments || task.comments.length === 0) && (
                         <p className="text-sm text-muted-foreground text-center py-4">No hay comentarios todavía.</p>
                     )}
                   </div>
@@ -697,7 +686,7 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
                 </SheetDescription>
             </div>
             {!isEditing && canEdit && (
-                 <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
+                 <Button variant="outline" size="sm" onClick={handleStartEditing}>
                     <Edit className="mr-2 h-4 w-4"/>
                     Editar
                 </Button>

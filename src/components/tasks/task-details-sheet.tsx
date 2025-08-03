@@ -101,7 +101,6 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
   const { user } = useAuth();
   
   const canEdit = user && project.team.find(m => m.id === user.uid)?.role === 'Admin';
-  const currentTask = isEditing && editableTask ? editableTask : task;
 
   useEffect(() => {
     if (task && task.assignedTeamId) {
@@ -124,12 +123,14 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
   }, [project.associatedTeamIds]);
 
 
-  if (!currentTask) return null;
+  if (!task) return null;
 
   const handleFieldChange = (field: keyof Task, value: any) => {
     if (!isEditing || !editableTask) return;
     const updatedTask = { ...editableTask, [field]: value };
     setEditableTask(updatedTask);
+    // This is important to keep the editable state consistent with the changes
+    onUpdate(updatedTask);
   }
 
   const handleAssigneeChange = (value: string) => {
@@ -455,10 +456,19 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
         <div className="flex-1 overflow-y-auto pr-6 -mr-6 pl-1 -ml-1">
           <div className="grid gap-6 py-4">
             <div className="grid gap-2">
+                <Label htmlFor="title">Título de la Tarea</Label>
+                <Input 
+                    id="title"
+                    value={editableTask?.title || ''} 
+                    onChange={(e) => handleFieldChange('title', e.target.value)}
+                    className="text-lg font-semibold"
+                />
+            </div>
+            <div className="grid gap-2">
               <Label htmlFor="description">Descripción</Label>
               <Textarea 
                 id="description" 
-                value={currentTask.description || ''}
+                value={editableTask?.description || ''}
                 onChange={(e) => handleFieldChange('description', e.target.value)} 
                 rows={5} 
                 placeholder="Añade una descripción más detallada..."
@@ -470,7 +480,7 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
             <div className="space-y-4">
                 <Label>Subtareas</Label>
                 <div className="space-y-2">
-                    {currentTask.subtasks?.map(subtask => (
+                    {editableTask?.subtasks?.map(subtask => (
                         <div key={subtask.id} className="flex items-center gap-3 group">
                         <Checkbox
                             id={`subtask-sheet-${subtask.id}`}
@@ -511,7 +521,7 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
                   <User className="inline-block mr-2 h-4 w-4" />
                   Asignado a
                 </Label>
-                <Select value={currentTask.assignee ? `user-${currentTask.assignee.id}` : currentTask.assignedTeamId ? `team-${currentTask.assignedTeamId}` : ''} onValueChange={handleAssigneeChange}>
+                <Select value={editableTask?.assignee ? `user-${editableTask.assignee.id}` : editableTask?.assignedTeamId ? `team-${editableTask.assignedTeamId}` : ''} onValueChange={handleAssigneeChange}>
                   <SelectTrigger>
                     <SelectValue placeholder="Seleccionar asignado..." />
                   </SelectTrigger>
@@ -552,7 +562,7 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
                   <AlertCircle className="inline-block mr-2 h-4 w-4" />
                   Prioridad
                 </Label>
-                <Select value={currentTask.priority} onValueChange={(v: TaskPriority) => handleFieldChange('priority', v)}>
+                <Select value={editableTask?.priority} onValueChange={(v: TaskPriority) => handleFieldChange('priority', v)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Establecer prioridad..." />
                   </SelectTrigger>
@@ -573,14 +583,14 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button variant="outline" className="w-full justify-start text-left font-normal">
-                      {currentTask.dueDate ? format(new Date(currentTask.dueDate), 'PPP', { locale: es }) : 'Establecer fecha...'}
+                      {editableTask?.dueDate ? format(new Date(editableTask.dueDate), 'PPP', { locale: es }) : 'Establecer fecha...'}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
                     <Calendar 
                       mode="single" 
                       locale={es}
-                      selected={currentTask.dueDate ? new Date(currentTask.dueDate) : undefined}
+                      selected={editableTask?.dueDate ? new Date(editableTask.dueDate) : undefined}
                       onSelect={(date) => handleFieldChange('dueDate', date)}
                     />
                   </PopoverContent>
@@ -592,7 +602,7 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
                   <Tag className="inline-block mr-2 h-4 w-4" />
                   Estado
                 </Label>
-                <Select value={currentTask.status} onValueChange={(v: TaskStatus) => handleFieldChange('status', v)}>
+                <Select value={editableTask?.status} onValueChange={(v: TaskStatus) => handleFieldChange('status', v)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Establecer estado..." />
                   </SelectTrigger>
@@ -611,7 +621,7 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
                   Colaboradores
                 </Label>
                 <div className="flex flex-wrap gap-2">
-                  {currentTask.collaborators?.map(c => (
+                  {editableTask?.collaborators?.map(c => (
                      <div key={c.id} className="flex items-center gap-2 bg-muted p-1 rounded-md">
                       <Avatar className="h-6 w-6">
                         <AvatarImage src={c.avatarUrl} />
@@ -628,7 +638,7 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
             </div>
             
             <Separator />
-            <TaskAssigner task={currentTask} project={project} />
+            <TaskAssigner task={editableTask!} project={project} />
           </div>
         </div>
         <SheetFooter className="pt-4 border-t">
@@ -672,15 +682,7 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
         <SheetHeader>
           <div className="flex justify-between items-start">
             <div className="flex-1">
-                {isEditing ? (
-                    <Input 
-                        value={currentTask.title} 
-                        onChange={(e) => handleFieldChange('title', e.target.value)}
-                        className="text-2xl font-bold border-none shadow-none focus-visible:ring-0 p-0"
-                    />
-                ) : (
-                    <SheetTitle className="text-2xl">{currentTask.title}</SheetTitle>
-                )}
+                <SheetTitle className="text-2xl">{task?.title}</SheetTitle>
                 <SheetDescription>
                     En el proyecto <span className="font-semibold text-primary">{project.name}</span>
                 </SheetDescription>
@@ -702,3 +704,4 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
 }
 
     
+

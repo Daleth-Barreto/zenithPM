@@ -56,6 +56,15 @@ export default function ProjectTeamsPage() {
       return () => unsubscribe();
     }
   }, [project]);
+
+  useEffect(() => {
+    if (selectedTeam) {
+        const updatedTeam = teams.find(t => t.id === selectedTeam.id);
+        if (updatedTeam) {
+            setSelectedTeam(updatedTeam);
+        }
+    }
+  }, [teams, selectedTeam]);
   
   const onTeamCreated = (newTeam: Team) => {
     // Listener will handle the update
@@ -104,13 +113,6 @@ export default function ProjectTeamsPage() {
     try {
         await removeMemberFromTeam(project.id, selectedTeam.id, memberId);
         toast({ title: 'Miembro Eliminado', description: 'El miembro ha sido eliminado del equipo.' });
-        // Refresh selected team
-        const updatedTeam = teams.find(t => t.id === selectedTeam.id);
-        if (updatedTeam) {
-          const newMembers = updatedTeam.members.filter(m => m.id !== memberId);
-          setSelectedTeam({...updatedTeam, members: newMembers});
-        }
-
     } catch (error) {
         console.error(error);
         toast({ variant: 'destructive', title: 'Error', description: 'No se pudo eliminar al miembro.' });
@@ -122,12 +124,6 @@ export default function ProjectTeamsPage() {
     try {
         await updateTeamMemberRoleInTeam(project.id, selectedTeam.id, memberId, role);
         toast({ title: 'Rol Actualizado', description: 'Se ha actualizado el rol del miembro.' });
-         // Refresh selected team
-        const updatedTeam = teams.find(t => t.id === selectedTeam.id);
-         if (updatedTeam) {
-          const newMembers = updatedTeam.members.map(m => m.id === memberId ? {...m, role} : m);
-          setSelectedTeam({...updatedTeam, members: newMembers});
-        }
     } catch (error) {
         console.error(error);
         toast({ variant: 'destructive', title: 'Error', description: 'No se pudo actualizar el rol.' });

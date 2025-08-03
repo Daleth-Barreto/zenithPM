@@ -352,14 +352,17 @@ export async function deleteTask(projectId: string, taskId: string) {
 export async function addCommentToTask(projectId: string, taskId: string, text: string, user: User) {
     const taskRef = doc(db, 'projects', projectId, 'tasks', taskId);
 
-    const newComment: Comment = {
+    const newComment: Partial<Comment> = {
         id: doc(collection(db, 'dummy')).id,
         text: text,
         authorId: user.uid,
         authorName: user.displayName || 'Usuario',
         createdAt: new Date(),
-        ...(user.photoURL && { authorAvatarUrl: user.photoURL }),
     };
+    if (user.photoURL) {
+        newComment.authorAvatarUrl = user.photoURL;
+    }
+
 
     await updateDoc(taskRef, {
         comments: arrayUnion(newComment)
@@ -547,30 +550,6 @@ export function getTeamsForProject(projectId: string, callback: (teams: Team[]) 
   });
 
   return unsubscribe;
-}
-
-export async function getTeamById(projectId: string, teamId: string): Promise<Team | null> {
-    const teamRef = doc(db, 'projects', projectId, 'teams', teamId);
-    const teamSnap = await getDoc(teamRef);
-    if (teamSnap.exists()) {
-        return { id: teamSnap.id, ...teamSnap.data() } as Team;
-    } else {
-        return null;
-    }
-}
-
-export function onTeamUpdate(projectId: string, teamId: string, callback: (team: Team | null) => void) {
-  const teamRef = doc(db, 'projects', projectId, 'teams', teamId);
-  return onSnapshot(teamRef, (doc) => {
-    if (doc.exists()) {
-      callback({ id: doc.id, ...doc.data() } as Team);
-    } else {
-      callback(null);
-    }
-  }, (error) => {
-    console.error("Error fetching team in real-time:", error);
-    callback(null);
-  });
 }
 
 export async function addMemberToTeam(projectId: string, teamId: string, email: string, currentUser: User): Promise<{ status: 'sent' | 'resent' } | { status: 'not_found'; inviteLink: string }> {

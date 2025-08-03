@@ -19,7 +19,7 @@ import {
   orderBy,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import type { Project, TeamMember, Task, TaskStatus } from './types';
+import type { Project, TeamMember, Task, TaskStatus, Comment } from './types';
 import type { User } from 'firebase/auth';
 import { generateAvatar } from './avatar';
 
@@ -151,6 +151,10 @@ export function getTasksForProject(
         // Firestore timestamps need to be converted to JS Date objects
         dueDate: data.dueDate?.toDate ? data.dueDate.toDate() : undefined,
         subtasks: data.subtasks || [],
+        comments: (data.comments || []).map((comment: any) => ({
+            ...comment,
+            createdAt: comment.createdAt?.toDate ? comment.createdAt.toDate() : new Date(),
+        })),
       } as Task);
     });
     callback(tasks);
@@ -198,11 +202,12 @@ export async function updateTask(projectId: string, taskId:string, taskData: Par
     await updateDoc(taskRef, dataToUpdate);
 }
 
-export async function createTask(projectId: string, taskData: Omit<Task, 'id' | 'order'> & {order: number}) {
+export async function createTask(projectId: string, taskData: Omit<Task, 'id' | 'order' | 'comments'> & {order: number}) {
     const tasksRef = collection(db, 'projects', projectId, 'tasks');
     const newDocRef = await addDoc(tasksRef, {
         ...taskData,
         subtasks: [],
+        comments: [],
     });
     return newDocRef.id;
 }
@@ -210,6 +215,18 @@ export async function createTask(projectId: string, taskData: Omit<Task, 'id' | 
 export async function deleteTask(projectId: string, taskId: string) {
     const taskRef = doc(db, 'projects', projectId, 'tasks', taskId);
     await deleteDoc(taskRef);
+}
+
+export async function addCommentToTask(projectId: string, taskId: string, comment: Omit<Comment, 'id' | 'createdAt'>) {
+    const taskRef = doc(db, 'projects', projectId, 'tasks', taskId);
+    const newComment = {
+        ...comment,
+        id: new Date().getTime().toString(),
+        createdAt: serverTimestamp(),
+    }
+    await updateDoc(taskRef, {
+        comments: arrayUnion(newComment)
+    });
 }
 
 

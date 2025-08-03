@@ -36,11 +36,11 @@ import {
 import type { Task, Project, TaskPriority, TaskStatus, Subtask, SubtaskStatus } from '@/lib/types';
 import { Calendar } from '../ui/calendar';
 import { Popover, PopoverTrigger, PopoverContent } from '../ui/popover';
-import { format } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { TaskAssigner } from '../ai/task-assigner';
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { deleteTask, updateTask } from '@/lib/firebase-services';
+import { deleteTask, updateTask, addCommentToTask } from '@/lib/firebase-services';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -70,6 +70,7 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
+  const [newComment, setNewComment] = useState('');
   const { toast } = useToast();
   const { user } = useAuth();
   const debouncedSaveRef = useRef<NodeJS.Timeout>();
@@ -126,6 +127,18 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
   const handleDeleteSubtask = (subtaskId: string) => {
     const updatedSubtasks = currentTask.subtasks?.filter(st => st.id !== subtaskId);
     handleFieldChange('subtasks', updatedSubtasks);
+  }
+
+  const handleAddComment = async () => {
+    if (!newComment.trim() || !currentTask || !user) return;
+    const commentData = {
+        text: newComment,
+        authorId: user.uid,
+        authorName: user.displayName || 'Usuario',
+        authorAvatarUrl: user.photoURL || undefined,
+    };
+    await addCommentToTask(project.id, currentTask.id, commentData);
+    setNewComment('');
   }
 
   const handleSaveAndClose = async () => {
@@ -361,24 +374,40 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
                 Comentarios
               </Label>
               <div className="space-y-4">
-                {/* Placeholder for comments */}
-                <div className="flex gap-3">
-                  <Avatar>
-                    <AvatarFallback>U</AvatarFallback>
-                  </Avatar>
-                  <div className="p-3 rounded-lg bg-muted flex-1">
-                    <p className="text-sm">¡Este es un excelente comienzo! ¿Podemos añadir una subtarea para la revisión de diseño?</p>
-                    <p className="text-xs text-muted-foreground mt-1">Usuario - hace 2 horas</p>
-                  </div>
-                </div>
+                {[...(currentTask.comments || [])].sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map(comment => (
+                    <div key={comment.id} className="flex gap-3">
+                    <Avatar>
+                        <AvatarImage src={comment.authorAvatarUrl} />
+                        <AvatarFallback>{comment.authorName.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                    <div className="p-3 rounded-lg bg-muted flex-1">
+                        <div className="flex justify-between items-center">
+                            <p className="text-sm font-semibold">{comment.authorName}</p>
+                            <p className="text-xs text-muted-foreground">
+                                {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true, locale: es })}
+                            </p>
+                        </div>
+                        <p className="text-sm mt-1">{comment.text}</p>
+                    </div>
+                    </div>
+                ))}
+
+                 {(!currentTask.comments || currentTask.comments.length === 0) && (
+                    <p className="text-sm text-muted-foreground text-center py-4">No hay comentarios todavía.</p>
+                )}
               </div>
               <div className="flex gap-2 items-center">
                  <Avatar className="h-8 w-8">
                     <AvatarImage src={user?.photoURL || undefined} />
                     <AvatarFallback>{user?.displayName?.charAt(0) || 'U'}</AvatarFallback>
                 </Avatar>
-                <Input placeholder="Escribe un comentario..." />
-                <Button size="icon"><Send className="h-4 w-4" /></Button>
+                <Input 
+                    placeholder="Escribe un comentario..." 
+                    value={newComment} 
+                    onChange={e => setNewComment(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleAddComment()}
+                />
+                <Button size="icon" onClick={handleAddComment} disabled={!newComment.trim()}><Send className="h-4 w-4" /></Button>
               </div>
             </div>
 

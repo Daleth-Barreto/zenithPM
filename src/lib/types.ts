@@ -29,6 +29,15 @@ export interface Subtask {
   status: SubtaskStatus;
 }
 
+export interface Comment {
+    id: string;
+    text: string;
+    authorId: string;
+    authorName: string;
+    authorAvatarUrl?: string;
+    createdAt: any; // Firestore Timestamp
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -40,6 +49,7 @@ export interface Task {
   collaborators?: TeamMember[];
   tags?: TaskTag[];
   subtasks?: Subtask[];
+  comments?: Comment[];
   order: number;
 }
 

@@ -141,7 +141,8 @@ export function getTasksForProject(
       tasks.push({
         id: doc.id,
         ...data,
-        dueDate: data.dueDate?.toDate(),
+        // Firestore timestamps need to be converted to JS Date objects
+        dueDate: data.dueDate?.toDate ? data.dueDate.toDate() : undefined,
         subtasks: data.subtasks || [],
       } as Task);
     });
@@ -166,12 +167,21 @@ export async function updateTaskOrder(projectId: string, taskId: string, order: 
 
 export async function updateTask(projectId: string, taskId:string, taskData: Partial<Omit<Task, 'id'>>) {
     const taskRef = doc(db, 'projects', projectId, 'tasks', taskId);
+
+    // Create a copy to avoid modifying the original object
     const dataToUpdate = { ...taskData };
 
-    if (dataToUpdate.dueDate && !(dataToUpdate.dueDate instanceof Date)) {
-        dataToUpdate.dueDate = (dataToUpdate.dueDate as any).toDate();
+    // Sanitize the data: convert undefined to null for Firestore compatibility
+    for (const key in dataToUpdate) {
+        if (dataToUpdate[key as keyof typeof dataToUpdate] === undefined) {
+            dataToUpdate[key as keyof typeof dataToUpdate] = null as any;
+        }
     }
+
+    // Firestore handles Date objects automatically, no need for conversion here
+    // if it's already a Date object.
     
+    // Subtasks are just arrays of objects, which is fine for Firestore
     if (dataToUpdate.subtasks) {
         dataToUpdate.subtasks = dataToUpdate.subtasks.map(subtask => ({ ...subtask }));
     }

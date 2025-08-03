@@ -39,7 +39,7 @@ import { Popover, PopoverTrigger, PopoverContent } from '../ui/popover';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { TaskAssigner } from '../ai/task-assigner';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { deleteTask, updateTask } from '@/lib/firebase-services';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -77,17 +77,18 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
   useEffect(() => {
     setCurrentTask(task);
   }, [task]);
+
+  const saveTask = useCallback(async (taskToSave: Task) => {
+    const { id, ...taskData } = taskToSave;
+    await updateTask(project.id, id, taskData);
+  }, [project.id]);
   
-  const handleDebouncedSave = (updatedTask: Task) => {
+  const handleDebouncedSave = useCallback((updatedTask: Task) => {
     if (debouncedSaveRef.current) {
       clearTimeout(debouncedSaveRef.current);
     }
-    debouncedSaveRef.current = setTimeout(async () => {
-       const { id, ...taskData } = updatedTask;
-       await updateTask(project.id, id, taskData);
-    }, 1000); // Save after 1 second of inactivity
-  };
-
+    debouncedSaveRef.current = setTimeout(() => saveTask(updatedTask), 1000);
+  }, [saveTask]);
 
   if (!currentTask) return null;
 
@@ -134,8 +135,7 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
     }
     setIsSaving(true);
     try {
-        const { id, ...taskData } = currentTask;
-        await updateTask(project.id, id, taskData);
+        await saveTask(currentTask);
         onUpdate(currentTask); 
         onClose(); 
         toast({

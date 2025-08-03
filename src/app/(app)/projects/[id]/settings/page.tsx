@@ -43,12 +43,13 @@ export default function ProjectSettingsPage() {
 
   useEffect(() => {
     if (projectId) {
-      getProjectById(projectId).then(p => {
+      const unsubscribe = getProjectById(projectId, (p) => {
         if(p) {
           setProject(p)
         }
         setLoading(false)
-      })
+      });
+      return () => unsubscribe();
     }
   }, [projectId]);
 

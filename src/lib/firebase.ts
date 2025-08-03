@@ -5,9 +5,9 @@ import { getFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: "AIzaSyC_MIXBzCO62thFFtTnDlUQJCdWRHOXVcc",
-  authDomain: "zenith-80fae.firebaseapp.com",
-  projectId: "zenith-80fae",
-  storageBucket: "zenith-80fae.firebasestorage.app",
+  authDomain: "zenith-pm.firebaseapp.com",
+  projectId: "zenith-pm",
+  storageBucket: "zenith-pm.appspot.com",
   messagingSenderId: "646291807012",
   appId: "1:646291807012:web:8a0614f831ab84d95b71b1",
   measurementId: "G-9C19CLJQ8D"

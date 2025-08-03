@@ -29,9 +29,10 @@ export interface Task {
   status: TaskStatus;
   priority: TaskPriority;
   dueDate?: Date;
-  assignee?: TeamMember;
+  assignee?: TeamMember | null;
   collaborators?: TeamMember[];
   tags?: TaskTag[];
+  order: number;
 }
 
 export interface Project {

@@ -1,3 +1,4 @@
+
 import {
   Sheet,
   SheetContent,
@@ -5,6 +6,7 @@ import {
   SheetTitle,
   SheetDescription,
   SheetFooter,
+  SheetClose,
 } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -26,29 +28,114 @@ import {
   Users,
   AlertCircle,
   Trash2,
+  Loader2,
 } from 'lucide-react';
-import type { Task, Project } from '@/lib/types';
+import type { Task, Project, TeamMember, TaskPriority, TaskStatus } from '@/lib/types';
 import { Calendar } from '../ui/calendar';
 import { Popover, PopoverTrigger, PopoverContent } from '../ui/popover';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { TaskAssigner } from '../ai/task-assigner';
+import { useEffect, useState } from 'react';
+import { deleteTask, updateTask } from '@/lib/firebase-services';
+import { useToast } from '@/hooks/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 interface TaskDetailsSheetProps {
   task: Task | null;
   project: Project;
   isOpen: boolean;
   onClose: () => void;
+  onUpdate: (task: Task) => void;
 }
 
-export function TaskDetailsSheet({ task, project, isOpen, onClose }: TaskDetailsSheetProps) {
-  if (!task) return null;
+export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: TaskDetailsSheetProps) {
+  const [currentTask, setCurrentTask] = useState<Task | null>(task);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    setCurrentTask(task);
+  }, [task]);
+
+  if (!currentTask) return null;
+
+  const handleFieldChange = (field: keyof Task, value: any) => {
+    setCurrentTask(prev => prev ? { ...prev, [field]: value } : null);
+  }
+
+  const handleAssigneeChange = (memberId: string) => {
+    const assignee = project.team.find(m => m.id === memberId);
+    handleFieldChange('assignee', assignee || null);
+  }
+
+  const handleSave = async () => {
+    if (!currentTask) return;
+    setIsSaving(true);
+    try {
+        const { id, ...taskData } = currentTask;
+        await updateTask(project.id, id, taskData);
+        onUpdate(currentTask); // Optimistic update on parent
+        onClose(); // Close sheet on save
+        toast({
+            title: 'Tarea Actualizada',
+            description: `Se han guardado los cambios para "${currentTask.title}".`
+        })
+    } catch (error) {
+        console.error("Error saving task:", error);
+        toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'No se pudieron guardar los cambios.'
+        })
+    } finally {
+        setIsSaving(false);
+    }
+  }
+
+  const handleDelete = async () => {
+    if(!currentTask) return;
+    setIsDeleting(true);
+     try {
+        await deleteTask(project.id, currentTask.id);
+        toast({
+            title: 'Tarea Eliminada',
+            description: `Se ha eliminado la tarea "${currentTask.title}".`
+        });
+        onClose();
+    } catch (error) {
+        console.error("Error deleting task:", error);
+         toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'No se pudo eliminar la tarea.'
+        })
+    } finally {
+        setIsDeleting(false);
+    }
+  }
+
 
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
       <SheetContent className="w-full sm:max-w-xl md:max-w-2xl flex flex-col">
         <SheetHeader>
-          <SheetTitle className="text-2xl">{task.title}</SheetTitle>
+          <Input 
+            value={currentTask.title} 
+            onChange={(e) => handleFieldChange('title', e.target.value)}
+            className="text-2xl font-bold border-none shadow-none focus-visible:ring-0 p-0"
+          />
           <SheetDescription>
             En el proyecto <span className="font-semibold text-primary">{project.name}</span>
           </SheetDescription>
@@ -57,7 +144,13 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose }: TaskDetails
           <div className="grid gap-6 py-4">
             <div className="grid gap-2">
               <Label htmlFor="description">Descripción</Label>
-              <Textarea id="description" defaultValue={task.description} rows={5} />
+              <Textarea 
+                id="description" 
+                value={currentTask.description || ''}
+                onChange={(e) => handleFieldChange('description', e.target.value)} 
+                rows={5} 
+                placeholder="Añade una descripción más detallada..."
+              />
             </div>
             <div className="grid md:grid-cols-2 gap-6">
               <div className="grid gap-2">
@@ -65,7 +158,7 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose }: TaskDetails
                   <User className="inline-block mr-2 h-4 w-4" />
                   Asignado a
                 </Label>
-                <Select defaultValue={task.assignee?.id}>
+                <Select value={currentTask.assignee?.id} onValueChange={handleAssigneeChange}>
                   <SelectTrigger>
                     <SelectValue placeholder="Seleccionar asignado..." />
                   </SelectTrigger>
@@ -90,7 +183,7 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose }: TaskDetails
                   <AlertCircle className="inline-block mr-2 h-4 w-4" />
                   Prioridad
                 </Label>
-                <Select defaultValue={task.priority}>
+                <Select value={currentTask.priority} onValueChange={(v: TaskPriority) => handleFieldChange('priority', v)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Establecer prioridad..." />
                   </SelectTrigger>
@@ -111,11 +204,16 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose }: TaskDetails
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button variant="outline" className="w-full justify-start text-left font-normal">
-                      {task.dueDate ? format(task.dueDate, 'PPP', { locale: es }) : 'Establecer fecha...'}
+                      {currentTask.dueDate ? format(currentTask.dueDate, 'PPP', { locale: es }) : 'Establecer fecha...'}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar mode="single" locale={es}/>
+                    <Calendar 
+                      mode="single" 
+                      locale={es}
+                      selected={currentTask.dueDate}
+                      onSelect={(date) => handleFieldChange('dueDate', date)}
+                    />
                   </PopoverContent>
                 </Popover>
               </div>
@@ -125,7 +223,7 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose }: TaskDetails
                   <Tag className="inline-block mr-2 h-4 w-4" />
                   Estado
                 </Label>
-                <Select defaultValue={task.status}>
+                <Select value={currentTask.status} onValueChange={(v: TaskStatus) => handleFieldChange('status', v)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Establecer estado..." />
                   </SelectTrigger>
@@ -145,7 +243,7 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose }: TaskDetails
                 </Label>
                 {/* A multi-select component would be ideal here */}
                 <div className="flex flex-wrap gap-2">
-                  {task.collaborators?.map(c => (
+                  {currentTask.collaborators?.map(c => (
                      <div key={c.id} className="flex items-center gap-2 bg-muted p-1 rounded-md">
                       <Avatar className="h-6 w-6">
                         <AvatarImage src={c.avatarUrl} />
@@ -154,22 +252,45 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose }: TaskDetails
                       <span className="text-sm">{c.name}</span>
                     </div>
                   ))}
+                   <div className="flex items-center justify-center w-8 h-8 rounded-full bg-muted border border-dashed hover:bg-border cursor-pointer">
+                        <User className="h-4 w-4 text-muted-foreground" />
+                    </div>
                 </div>
               </div>
             </div>
             <Separator />
-            <TaskAssigner task={task} project={project} />
+            <TaskAssigner task={currentTask} project={project} />
           </div>
         </div>
         <SheetFooter className="pt-4 border-t">
-          <Button variant="destructive" className="mr-auto">
-            <Trash2 className="mr-2 h-4 w-4" />
-            Eliminar Tarea
-          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+               <Button variant="destructive" className="mr-auto" disabled={isDeleting}>
+                {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                Eliminar Tarea
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>¿Estás seguro de que quieres eliminar esta tarea?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Esta acción no se puede deshacer. Esto eliminará permanentemente la tarea de tu proyecto.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDelete}>Sí, eliminar tarea</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+         
           <Button variant="outline" onClick={onClose}>
             Cancelar
           </Button>
-          <Button onClick={onClose}>Guardar Cambios</Button>
+          <Button onClick={handleSave} disabled={isSaving}>
+            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Guardar Cambios
+          </Button>
         </SheetFooter>
       </SheetContent>
     </Sheet>

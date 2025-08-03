@@ -16,12 +16,12 @@ import {
   arrayUnion,
   arrayRemove,
   deleteDoc,
+  orderBy,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import type { Project, TeamMember, Task } from './types';
+import type { Project, TeamMember, Task, TaskStatus } from './types';
 import type { User } from 'firebase/auth';
 import { generateAvatar } from './avatar';
-import { es } from 'date-fns/locale';
 
 function getRandomColor() {
   const letters = '0123456789ABCDEF';
@@ -62,16 +62,6 @@ export async function createProject(
     color: projectColor,
     imageUrl: `https://placehold.co/600x400/${projectColor.substring(1)}/FFFFFF`,
   });
-
-  // Create initial columns
-  const statuses: TaskStatus[] = ['backlog', 'in-progress', 'review', 'done'];
-  const batch = writeBatch(db);
-  statuses.forEach((status, index) => {
-    const columnRef = doc(collection(db, 'projects', newProjectRef.id, 'columns'));
-    batch.set(columnRef, { name: getStatusLabel(status), status: status, order: index });
-  });
-  await batch.commit();
-
 
   return {
     id: newProjectRef.id,
@@ -120,25 +110,6 @@ export async function getProjectById(projectId: string): Promise<Project | null>
 
     if (projectSnap.exists()) {
         const data = projectSnap.data();
-
-        // Fetch tasks for the project
-        const tasksCollectionRef = collection(db, 'projects', projectId, 'tasks');
-        const tasksSnapshot = await getDocs(tasksCollectionRef);
-        const tasks = tasksSnapshot.docs.map(doc => {
-          const taskData = doc.data();
-          return { 
-            id: doc.id,
-            ...taskData,
-            dueDate: taskData.dueDate?.toDate(),
-          } as Task;
-        });
-
-        // Fetch columns for the project
-        const columnsCollectionRef = collection(db, 'projects', projectId, 'columns');
-        const columnsSnapshot = await getDocs(query(columnsCollectionRef));
-        const columns = columnsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-
         return {
             id: projectSnap.id,
             name: data.name,
@@ -147,9 +118,8 @@ export async function getProjectById(projectId: string): Promise<Project | null>
             team: data.team,
             imageUrl: data.imageUrl,
             color: data.color,
-            tasks: tasks,
-            columns: columns,
-        } as any; // Cast to any to add 'columns', then to Project
+            tasks: [], // Tasks are now fetched in real-time inside the board
+        } as Project;
     } else {
         return null;
     }
@@ -157,12 +127,12 @@ export async function getProjectById(projectId: string): Promise<Project | null>
 
 
 // --- TASKS ---
-export async function getTasksForProject(
+export function getTasksForProject(
   projectId: string,
   callback: (tasks: Task[]) => void
 ) {
   const tasksRef = collection(db, 'projects', projectId, 'tasks');
-  const q = query(tasksRef);
+  const q = query(tasksRef, orderBy('order', 'asc'));
 
   const unsubscribe = onSnapshot(q, (querySnapshot) => {
     const tasks: Task[] = [];
@@ -182,19 +152,29 @@ export async function getTasksForProject(
   return unsubscribe;
 }
 
-export async function updateTaskStatus(projectId: string, taskId: string, newStatus: TaskStatus) {
+export async function updateTaskStatus(projectId: string, taskId: string, newStatus: TaskStatus, order: number) {
   const taskRef = doc(db, 'projects', projectId, 'tasks', taskId);
-  await updateDoc(taskRef, { status: newStatus });
+  await updateDoc(taskRef, { status: newStatus, order });
+}
+
+export async function updateTaskOrder(projectId: string, taskId: string, order: number) {
+    const taskRef = doc(db, 'projects', projectId, 'tasks', taskId);
+    await updateDoc(taskRef, { order });
 }
 
 
 export async function updateTask(projectId: string, taskId: string, taskData: Partial<Task>) {
   const taskRef = doc(db, 'projects', projectId, 'tasks', taskId);
+  const dataToUpdate = { ...taskData };
   // Firestore handles undefined fields correctly (doesn't update them)
-  await updateDoc(taskRef, taskData);
+  // But make sure to handle date objects properly
+  if (dataToUpdate.dueDate && !(dataToUpdate.dueDate instanceof Date)) {
+    dataToUpdate.dueDate = (dataToUpdate.dueDate as any).toDate();
+  }
+  await updateDoc(taskRef, dataToUpdate);
 }
 
-export async function createTask(projectId: string, taskData: Omit<Task, 'id'>) {
+export async function createTask(projectId: string, taskData: Omit<Task, 'id' | 'order'> & {order: number}) {
     const tasksRef = collection(db, 'projects', projectId, 'tasks');
     const newDocRef = await addDoc(tasksRef, taskData);
     return newDocRef.id;
@@ -209,28 +189,15 @@ export async function deleteTask(projectId: string, taskId: string) {
 // --- TEAM ---
 export async function inviteTeamMember(projectId: string, email: string) {
   // This is a simplified version. A real app would:
-  // 1. Check if the user exists in the main 'users' collection.
-  // 2. If not, maybe create an "invitation" document.
-  // 3. If they exist, add them to the project's team.
-  // For now, we'll assume the user exists and just add them by email.
+  // 1. Check if the user exists in a main 'users' collection (we assume this for now).
+  // 2. For this app, we'll just add a placeholder user if no real user is found.
   
-  const usersRef = collection(db, 'users');
-  const q = query(usersRef, where("email", "==", email));
-  const querySnapshot = await getDocs(q);
-
-  if (querySnapshot.empty) {
-    throw new Error("No se encontró ningún usuario con ese correo electrónico.");
-  }
-
-  const userDoc = querySnapshot.docs[0];
-  const userData = userDoc.data();
-
-  const newMember: TeamMember = {
-    id: userDoc.id,
-    name: userData.displayName || 'Nuevo Miembro',
-    email: userData.email,
-    avatarUrl: userData.photoURL || generateAvatar(userData.displayName || userData.email),
-    initials: (userData.displayName || 'N').charAt(0),
+  const owner: TeamMember = {
+    id: new Date().getTime().toString(), // Mock ID
+    name: email.split('@')[0],
+    email: email,
+    avatarUrl: generateAvatar(email),
+    initials: email.charAt(0).toUpperCase(),
     role: 'Miembro',
     expertise: 'Sin definir',
     currentWorkload: 0,
@@ -238,11 +205,11 @@ export async function inviteTeamMember(projectId: string, email: string) {
 
   const projectRef = doc(db, 'projects', projectId);
   await updateDoc(projectRef, {
-    team: arrayUnion(newMember),
-    teamIds: arrayUnion(userDoc.id)
+    team: arrayUnion(owner),
+    teamIds: arrayUnion(owner.id)
   });
 
-  return newMember;
+  return owner;
 }
 
 export async function removeTeamMember(projectId: string, memberId: string) {
@@ -251,21 +218,11 @@ export async function removeTeamMember(projectId: string, memberId: string) {
     if(projectSnap.exists()){
         const projectData = projectSnap.data();
         const updatedTeam = projectData.team.filter((m: TeamMember) => m.id !== memberId);
+        const updatedTeamIds = projectData.teamIds.filter((id: string) => id !== memberId);
         
         await updateDoc(projectRef, {
             team: updatedTeam,
-            teamIds: arrayRemove(memberId)
+            teamIds: updatedTeamIds
         });
     }
 }
-
-// --- HELPERS ---
-const getStatusLabel = (status: TaskStatus) => {
-    switch (status) {
-        case 'backlog': return 'Pendiente';
-        case 'in-progress': return 'En Progreso';
-        case 'review': return 'En Revisión';
-        case 'done': return 'Hecho';
-        default: return 'Columna';
-    }
-};

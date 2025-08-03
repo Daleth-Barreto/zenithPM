@@ -52,10 +52,19 @@ export default function ProjectLayout({
     notFound();
   }
 
+  // We are cloning the children to pass the project prop to them.
+  // This is a common pattern for layouts that need to pass data to their children pages.
+  const childrenWithProps = React.Children.map(children, child => {
+    if (React.isValidElement(child)) {
+        return React.cloneElement(child, { project } as any);
+    }
+    return child;
+  });
+
   return (
     <div className="flex flex-col h-full">
       <ProjectHeader project={project} />
-      <div className="flex-1 overflow-y-auto">{children}</div>
+      <div className="flex-1 overflow-y-auto">{childrenWithProps}</div>
     </div>
   );
 }

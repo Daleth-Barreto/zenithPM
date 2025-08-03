@@ -8,26 +8,9 @@ import type { Project } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useParams } from 'next/navigation';
 
-
-export default function ProjectBoardPage() {
-  const params = useParams();
-  const projectId = params.id as string;
-  const [project, setProject] = useState<Project | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (projectId) {
-        getProjectById(projectId).then(p => {
-            if (p) {
-                setProject(p);
-            }
-            setLoading(false);
-        });
-    }
-  }, [projectId]);
-
-
-  if (loading) {
+// The project prop is passed down from the ProjectLayout
+export default function ProjectBoardPage({ project }: { project: Project }) {
+  if (!project) {
     return (
         <div className="p-4 md:p-8 flex-1 space-x-4 flex overflow-x-auto h-full">
             {[...Array(4)].map((_, i) => (
@@ -40,10 +23,6 @@ export default function ProjectBoardPage() {
             ))}
         </div>
     )
-  }
-
-  if (!project) {
-    return <div>Project not found</div>;
   }
 
   return <KanbanBoard project={project} />;

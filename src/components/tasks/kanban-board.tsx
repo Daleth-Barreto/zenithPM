@@ -1,15 +1,19 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   DragDropContext,
   Droppable,
+  Draggable,
   type DropResult,
 } from '@hello-pangea/dnd';
 import { TicketCard } from './ticket-card';
-import type { Task, Project } from '@/lib/types';
+import type { Task, Project, TaskStatus } from '@/lib/types';
 import { TaskDetailsSheet } from './task-details-sheet';
+import { getTasksForProject, createTask, updateTaskStatus, updateTaskOrder } from '@/lib/firebase-services';
+import { Button } from '../ui/button';
+import { Plus } from 'lucide-react';
 
 interface KanbanBoardProps {
   project: Project;
@@ -20,93 +24,186 @@ type ColumnData = {
   items: Task[];
 };
 
+const initialColumns: Record<TaskStatus, ColumnData> = {
+  backlog: { name: 'Pendiente', items: [] },
+  'in-progress': { name: 'En Progreso', items: [] },
+  review: { name: 'En Revisión', items: [] },
+  done: { name: 'Hecho', items: [] },
+};
+
+const columnOrder: TaskStatus[] = ['backlog', 'in-progress', 'review', 'done'];
+
 export function KanbanBoard({ project }: KanbanBoardProps) {
-  const initialColumns: Record<Task['status'], ColumnData> = {
-    backlog: { name: 'Pendiente', items: [] },
-    'in-progress': { name: 'En Progreso', items: [] },
-    review: { name: 'En Revisión', items: [] },
-    done: { name: 'Hecho', items: [] },
-  };
-
-  project.tasks.forEach((task) => {
-    if (initialColumns[task.status]) {
-      initialColumns[task.status].items.push(task);
-    }
-  });
-
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [columns, setColumns] = useState(initialColumns);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+
+  useEffect(() => {
+    if (project.id) {
+      const unsubscribe = getTasksForProject(project.id, (fetchedTasks) => {
+        setTasks(fetchedTasks);
+      });
+      return () => unsubscribe();
+    }
+  }, [project.id]);
+
+  useEffect(() => {
+    const newColumns = { ...initialColumns };
+    // Reset items array for each column
+    Object.keys(newColumns).forEach(key => {
+        newColumns[key as TaskStatus].items = [];
+    });
+
+    tasks.forEach((task) => {
+      if (newColumns[task.status]) {
+        newColumns[task.status].items.push(task);
+      }
+    });
+
+    // Sort tasks within each column by order
+    Object.keys(newColumns).forEach(key => {
+        newColumns[key as TaskStatus].items.sort((a, b) => a.order - b.order);
+    });
+
+    setColumns(newColumns);
+  }, [tasks]);
+
+  const handleAddTask = async (status: TaskStatus) => {
+    const order = columns[status].items.length;
+    const newTaskData = {
+        title: `Nueva Tarea`,
+        status,
+        priority: 'medium' as const,
+        order,
+        description: '',
+    };
+    await createTask(project.id, newTaskData);
+    // Real-time listener will update the state
+  };
 
   const onDragEnd = (result: DropResult) => {
     const { source, destination } = result;
     if (!destination) return;
 
-    const sourceColId = source.droppableId as Task['status'];
-    const destColId = destination.droppableId as Task['status'];
+    const sourceColId = source.droppableId as TaskStatus;
+    const destColId = destination.droppableId as TaskStatus;
+    
+    const startCol = columns[sourceColId];
+    const endCol = columns[destColId];
+    
+    if (!startCol || !endCol) return;
 
-    const sourceCol = columns[sourceColId];
-    const destCol = columns[destColId];
-
-    const sourceItems = [...sourceCol.items];
-    const [removed] = sourceItems.splice(source.index, 1);
-
+    const sourceItems = [...startCol.items];
+    const [movedItem] = sourceItems.splice(source.index, 1);
+    
+    // Moving within the same column
     if (sourceColId === destColId) {
-      sourceItems.splice(destination.index, 0, removed);
-      setColumns({
-        ...columns,
-        [sourceColId]: { ...sourceCol, items: sourceItems },
-      });
-    } else {
-      const destItems = [...destCol.items];
-      destItems.splice(destination.index, 0, removed);
-      setColumns({
-        ...columns,
-        [sourceColId]: { ...sourceCol, items: sourceItems },
-        [destColId]: { ...destCol, items: destItems },
-      });
+        sourceItems.splice(destination.index, 0, movedItem);
+        
+        const newColumns = {
+            ...columns,
+            [sourceColId]: {
+                ...startCol,
+                items: sourceItems
+            }
+        };
+        setColumns(newColumns);
+
+        // Update order in Firebase
+        sourceItems.forEach((task, index) => {
+            if (task.order !== index) {
+              updateTaskOrder(project.id, task.id, index);
+            }
+        });
+    } else { // Moving to a different column
+        const endItems = [...endCol.items];
+        endItems.splice(destination.index, 0, movedItem);
+
+        const newColumns = {
+            ...columns,
+            [sourceColId]: {
+                ...startCol,
+                items: sourceItems
+            },
+            [destColId]: {
+                ...endCol,
+                items: endItems
+            }
+        };
+        setColumns(newColumns);
+
+        // Update status and order for the moved task
+        updateTaskStatus(project.id, movedItem.id, destColId, destination.index);
+
+        // Update order for remaining items in source column
+        sourceItems.forEach((task, index) => {
+            if (task.order !== index) {
+              updateTaskOrder(project.id, task.id, index);
+            }
+        });
+        
+        // Update order for items in destination column
+        endItems.forEach((task, index) => {
+            if (task.order !== index && task.id !== movedItem.id) {
+              updateTaskOrder(project.id, task.id, index);
+            }
+        });
     }
   };
 
   return (
     <div className="flex-1 p-4 md:p-8 space-x-4 flex overflow-x-auto h-full">
       <DragDropContext onDragEnd={onDragEnd}>
-        {Object.entries(columns).map(([columnId, column]) => (
-          <Droppable key={columnId} droppableId={columnId}>
-            {(provided, snapshot) => (
-              <div
-                ref={provided.innerRef}
-                {...provided.droppableProps}
-                className={`flex flex-col w-72 lg:w-80 flex-shrink-0 bg-muted/50 rounded-lg transition-colors ${
-                  snapshot.isDraggingOver ? 'bg-muted' : ''
-                }`}
-              >
-                <div className="p-3 border-b">
-                  <h3 className="font-semibold">{column.name}</h3>
-                  <p className="text-sm text-muted-foreground">
-                    {column.items.length} tarea{column.items.length !== 1 ? 's' : ''}
-                  </p>
-                </div>
-                <div className="flex-1 p-2 overflow-y-auto">
-                  {column.items.map((task, index) => (
-                    <TicketCard
-                      key={task.id}
-                      task={task}
-                      index={index}
-                      onClick={() => setSelectedTask(task)}
-                    />
-                  ))}
-                  {provided.placeholder}
-                </div>
+        {columnOrder.map((columnId) => {
+          const column = columns[columnId];
+          if (!column) return null;
+          return (
+            <div key={columnId} className="flex flex-col w-72 lg:w-80 flex-shrink-0">
+              <div className="p-3 border-b bg-muted/50 rounded-t-lg">
+                <h3 className="font-semibold">{column.name}</h3>
+                <p className="text-sm text-muted-foreground">
+                  {column.items.length} tarea{column.items.length !== 1 ? 's' : ''}
+                </p>
               </div>
-            )}
-          </Droppable>
-        ))}
+               <Button variant="ghost" size="sm" className="m-2" onClick={() => handleAddTask(columnId)}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Añadir Tarea
+              </Button>
+              <Droppable key={columnId} droppableId={columnId}>
+                {(provided, snapshot) => (
+                  <div
+                    ref={provided.innerRef}
+                    {...provided.droppableProps}
+                    className={`flex-1 p-2 overflow-y-auto bg-muted/50 rounded-b-lg transition-colors ${
+                      snapshot.isDraggingOver ? 'bg-muted' : ''
+                    }`}
+                  >
+                    {column.items.map((task, index) => (
+                      <TicketCard
+                        key={task.id}
+                        task={task}
+                        index={index}
+                        onClick={() => setSelectedTask(task)}
+                      />
+                    ))}
+                    {provided.placeholder}
+                  </div>
+                )}
+              </Droppable>
+            </div>
+          )
+        })}
       </DragDropContext>
       <TaskDetailsSheet
         task={selectedTask}
         project={project}
         isOpen={!!selectedTask}
         onClose={() => setSelectedTask(null)}
+        onUpdate={(updatedTask) => {
+            // Optimistically update the selected task for instant feedback
+            setSelectedTask(updatedTask);
+            // The real-time listener will handle the main state update
+        }}
       />
     </div>
   );

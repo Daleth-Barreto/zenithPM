@@ -1,7 +1,7 @@
 
 'use client';
 
-import { getProjectById } from '@/lib/firebase-services';
+import { getProjectById, inviteTeamMember, removeTeamMember } from '@/lib/firebase-services';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -9,18 +9,37 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import { Trash2 } from 'lucide-react';
+import { Loader2, Trash2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import type { Project } from '@/lib/types';
+import type { Project, TeamMember } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useToast } from '@/hooks/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import { useAuth } from '@/contexts/auth-context';
+
 
 export default function ProjectSettingsPage() {
   const params = useParams();
   const projectId = params.id as string;
+  const { user } = useAuth();
+  const { toast } = useToast();
+  
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isInviting, setIsInviting] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
 
   useEffect(() => {
     if (projectId) {
@@ -32,6 +51,48 @@ export default function ProjectSettingsPage() {
       })
     }
   }, [projectId]);
+
+  const handleInviteMember = async () => {
+    if (!inviteEmail || !project) return;
+    setIsInviting(true);
+    try {
+      const newMember = await inviteTeamMember(project.id, inviteEmail);
+      setProject(prev => prev ? { ...prev, team: [...prev.team, newMember] } : null);
+      setInviteEmail('');
+      toast({
+        title: 'Invitación Enviada',
+        description: `${newMember.name} ha sido añadido al proyecto.`
+      });
+    } catch (error) {
+      console.error(error);
+      toast({
+        variant: 'destructive',
+        title: 'Error de Invitación',
+        description: (error as Error).message,
+      })
+    } finally {
+      setIsInviting(false);
+    }
+  }
+
+  const handleRemoveMember = async (memberId: string) => {
+    if (!project) return;
+    try {
+      await removeTeamMember(project.id, memberId);
+      setProject(prev => prev ? { ...prev, team: prev.team.filter(m => m.id !== memberId) } : null);
+      toast({
+        title: 'Miembro Eliminado',
+        description: 'El miembro del equipo ha sido eliminado del proyecto.'
+      })
+    } catch (error) {
+      console.error(error);
+       toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'No se pudo eliminar al miembro del equipo.',
+      })
+    }
+  }
 
 
   if (loading) {
@@ -60,6 +121,9 @@ export default function ProjectSettingsPage() {
   if (!project) {
     return <div>Proyecto no encontrado</div>;
   }
+  
+  const canManageTeam = project.team.find(m => m.id === user?.uid)?.role === 'Admin';
+
 
   return (
     <div className="p-4 md:p-8 space-y-8">
@@ -100,7 +164,7 @@ export default function ProjectSettingsPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Select defaultValue={member.role.toLowerCase()}>
+                  <Select defaultValue={member.role.toLowerCase()} disabled={!canManageTeam || member.id === user?.uid}>
                     <SelectTrigger className="w-32">
                       <SelectValue />
                     </SelectTrigger>
@@ -109,24 +173,53 @@ export default function ProjectSettingsPage() {
                       <SelectItem value="member">Miembro</SelectItem>
                     </SelectContent>
                   </Select>
-                  <Button variant="ghost" size="icon" className="text-muted-foreground">
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                       <Button variant="ghost" size="icon" className="text-muted-foreground" disabled={!canManageTeam || member.id === user?.uid}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Esta acción no se puede deshacer. Esto eliminará permanentemente al miembro del proyecto.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => handleRemoveMember(member.id)}>Eliminar</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
               </div>
             ))}
           </div>
-          <Separator />
-          <div>
-            <h4 className="font-medium mb-2">Invitar Miembro</h4>
-            <div className="flex gap-2">
-              <Input type="email" placeholder="nuevo.miembro@example.com" />
-              <Button>Enviar Invitación</Button>
-            </div>
-            <p className="text-xs text-muted-foreground mt-2">
-              Los miembros del equipo serán invitados a unirse a este proyecto por correo electrónico.
-            </p>
-          </div>
+          {canManageTeam && (
+            <>
+              <Separator />
+              <div>
+                <h4 className="font-medium mb-2">Invitar Miembro</h4>
+                <div className="flex gap-2">
+                  <Input 
+                    type="email" 
+                    placeholder="nuevo.miembro@example.com" 
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    disabled={isInviting}
+                  />
+                  <Button onClick={handleInviteMember} disabled={isInviting || !inviteEmail}>
+                    {isInviting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Enviar Invitación
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Los miembros del equipo serán invitados a unirse a este proyecto por correo electrónico.
+                </p>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 

@@ -1,3 +1,4 @@
+
 import {
   Table,
   TableBody,
@@ -17,6 +18,8 @@ import {
 import type { Task, Project } from '@/lib/types';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { useEffect, useState } from 'react';
+import { getTasksForProject } from '@/lib/firebase-services';
 
 interface TaskListProps {
   project: Project;
@@ -51,6 +54,17 @@ const statusLabels: Record<Task['status'], string> = {
 };
 
 export function TaskList({ project }: TaskListProps) {
+  const [tasks, setTasks] = useState<Task[]>([]);
+
+  useEffect(() => {
+    if (project.id) {
+      const unsubscribe = getTasksForProject(project.id, (fetchedTasks) => {
+        setTasks(fetchedTasks);
+      });
+      return () => unsubscribe();
+    }
+  }, [project.id]);
+
   return (
     <Card>
       <Table>
@@ -64,7 +78,7 @@ export function TaskList({ project }: TaskListProps) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {project.tasks.map((task) => (
+          {tasks.map((task) => (
             <TableRow key={task.id} className="cursor-pointer">
               <TableCell className="font-medium">{task.title}</TableCell>
               <TableCell>

@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import { Loader2, Trash2, UserPlus } from 'lucide-react';
+import { Loader2, Trash2, UserPlus, Copy } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -59,9 +59,27 @@ export default function TeamManagementPage() {
     if (!inviteEmail || !team || !user) return;
     setIsInviting(true);
     try {
-        await addMemberToTeam(team.id, inviteEmail, user);
+        const result = await addMemberToTeam(team.id, inviteEmail, user);
+        if (result.success) {
+          toast({ title: 'Invitación Enviada', description: `Se ha enviado una invitación a ${inviteEmail}.` });
+        } else {
+           toast({
+              title: 'Usuario no encontrado',
+              description: (
+                <div className="flex flex-col gap-2">
+                  <span>Este usuario no está en ZenithPM. Cópia y envíale este enlace para que se una:</span>
+                  <div className="flex items-center gap-2 mt-2 p-2 rounded-md bg-muted">
+                    <Input readOnly value={result.inviteLink} className="text-xs" />
+                    <Button size="icon" variant="ghost" onClick={() => navigator.clipboard.writeText(result.inviteLink)}>
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ),
+              duration: 10000,
+            });
+        }
         setInviteEmail('');
-        toast({ title: 'Invitación Enviada', description: `Se ha enviado una invitación a ${inviteEmail}.` });
     } catch (error) {
         console.error(error);
         toast({ variant: 'destructive', title: 'Error', description: (error as Error).message });

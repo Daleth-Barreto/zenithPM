@@ -12,8 +12,9 @@ import {
   signInWithPopup,
   updateProfile,
 } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
 import type { SignUpData, SignInData } from '@/lib/types';
+import { doc, setDoc } from 'firebase/firestore';
 
 interface AuthContextType {
   user: User | null;
@@ -46,13 +47,33 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signUp = async (email: SignUpData['email'], password: SignUpData['password'], fullName: SignUpData['fullName']) => {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     await updateProfile(userCredential.user, { displayName: fullName });
-    // Here you could also save user data to Firestore
+    
+    // Save user to Firestore 'users' collection
+    const userDocRef = doc(db, 'users', userCredential.user.uid);
+    await setDoc(userDocRef, {
+      uid: userCredential.user.uid,
+      email: userCredential.user.email,
+      displayName: fullName,
+      createdAt: new Date(),
+    });
+
     return userCredential;
   };
 
-  const signInWithGoogle = () => {
+  const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
-    return signInWithPopup(auth, provider);
+    const result = await signInWithPopup(auth, provider);
+    
+    // Save user to Firestore 'users' collection on first sign-in
+    const userDocRef = doc(db, 'users', result.user.uid);
+     await setDoc(userDocRef, {
+      uid: result.user.uid,
+      email: result.user.email,
+      displayName: result.user.displayName,
+      createdAt: new Date(),
+    }, { merge: true }); // Merge to avoid overwriting existing data
+
+    return result;
   };
 
   const signOut = () => {

@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import { Loader2, Trash2, Users, Plus } from 'lucide-react';
+import { Loader2, Trash2, Users, Plus, Copy } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -78,12 +78,31 @@ export default function ProjectSettingsPage() {
     if (!inviteEmail || !project || !user) return;
     setIsInviting(true);
     try {
-      await inviteTeamMember(project.id, project, inviteEmail, user);
+      const result = await inviteTeamMember(project.id, project, inviteEmail, user);
+      
+      if (result.success) {
+        toast({
+          title: 'Invitación Enviada',
+          description: `Se ha enviado una invitación a ${inviteEmail}.`
+        });
+      } else {
+        toast({
+          title: 'Usuario no encontrado',
+          description: (
+            <div className="flex flex-col gap-2">
+              <span>Este usuario no está en ZenithPM. Cópia y envíale este enlace para que se una:</span>
+              <div className="flex items-center gap-2 mt-2 p-2 rounded-md bg-muted">
+                <Input readOnly value={result.inviteLink} className="text-xs" />
+                <Button size="icon" variant="ghost" onClick={() => navigator.clipboard.writeText(result.inviteLink)}>
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          ),
+          duration: 10000,
+        });
+      }
       setInviteEmail('');
-      toast({
-        title: 'Invitación Enviada',
-        description: `Se ha enviado una invitación a ${inviteEmail}.`
-      });
     } catch (error) {
       console.error(error);
       toast({
@@ -346,7 +365,7 @@ export default function ProjectSettingsPage() {
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground mt-2">
-                  Los miembros del equipo serán invitados a unirse a este proyecto por correo electrónico.
+                  Los miembros del equipo serán invitados a unirse a este proyecto.
                 </p>
               </div>
             </>

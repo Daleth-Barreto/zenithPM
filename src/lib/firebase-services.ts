@@ -18,6 +18,7 @@ import {
   deleteDoc,
   orderBy,
   runTransaction,
+  limit,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import type { Project, TeamMember, Task, TaskStatus, Comment, Team, Invitation } from './types';
@@ -31,6 +32,14 @@ function getRandomColor() {
     color += letters[Math.floor(Math.random() * 16)];
   }
   return color;
+}
+
+// --- USERS ---
+export async function checkUserExistsByEmail(email: string): Promise<boolean> {
+  const usersRef = collection(db, 'users');
+  const q = query(usersRef, where('email', '==', email), limit(1));
+  const querySnapshot = await getDocs(q);
+  return !querySnapshot.empty;
 }
 
 // --- PROJECTS ---
@@ -84,61 +93,20 @@ export function getProjectsForUser(
 ) {
   const projectsRef = collection(db, 'projects');
   
-  // Query for projects where user is a direct member
   const q1 = query(projectsRef, where('teamIds', 'array-contains', userId));
   
-  // Query for user's teams to then find projects associated with those teams
-  const teamsRef = collection(db, 'teams');
-  const userTeamsQuery = query(teamsRef, where('memberIds', 'array-contains', userId));
-
-  let combinedProjects: Record<string, Project> = {};
-  let teamProjectUnsubscribes: (() => void)[] = [];
-
-  const processAndCallback = () => {
-    callback(Object.values(combinedProjects).sort((a,b) => a.name.localeCompare(b.name)));
-  };
-
-  const directUnsubscribe = onSnapshot(q1, (snapshot) => {
-    snapshot.docs.forEach(doc => {
+  let unsubscribe = onSnapshot(q1, (snapshot) => {
+    const projects: Project[] = [];
+    snapshot.forEach(doc => {
       const data = doc.data();
-      combinedProjects[doc.id] = {
+      projects.push({
         id: doc.id, ...data, tasks: []
-      } as Project;
+      } as Project);
     });
-    processAndCallback();
+    callback(projects.sort((a,b) => a.name.localeCompare(b.name)));
   });
 
-  const teamsUnsubscribe = onSnapshot(userTeamsQuery, (teamsSnapshot) => {
-    // Clean up old team project listeners
-    teamProjectUnsubscribes.forEach(unsub => unsub());
-    teamProjectUnsubscribes = [];
-
-    const teamIds = teamsSnapshot.docs.map(doc => doc.id);
-
-    if (teamIds.length > 0) {
-      const q2 = query(projectsRef, where('associatedTeamIds', 'array-contains-any', teamIds));
-      const teamProjectsUnsubscribe = onSnapshot(q2, (snapshot) => {
-        snapshot.docs.forEach(doc => {
-          const data = doc.data();
-          if (!combinedProjects[doc.id]) { // Avoid duplicates
-             combinedProjects[doc.id] = {
-               id: doc.id, ...data, tasks: []
-             } as Project;
-          }
-        });
-        processAndCallback();
-      });
-      teamProjectUnsubscribes.push(teamProjectsUnsubscribe);
-    } else {
-        processAndCallback(); // Call even if user has no teams
-    }
-  });
-
-  return () => {
-    directUnsubscribe();
-    teamsUnsubscribe();
-    teamProjectUnsubscribes.forEach(unsub => unsub());
-  };
+  return unsubscribe;
 }
 
 
@@ -187,7 +155,6 @@ export function getTasksForProject(
       tasks.push({
         id: doc.id,
         ...data,
-        // Firestore timestamps need to be converted to JS Date objects
         dueDate: data.dueDate?.toDate ? data.dueDate.toDate() : undefined,
         comments: (data.comments || []).map((comment: any) => ({
             ...comment,
@@ -264,14 +231,19 @@ export async function addCommentToTask(projectId: string, taskId: string, commen
 }
 
 // --- TEAM MEMBERS (PROJECT) ---
-export async function inviteTeamMember(projectId: string, project: Project, email: string, currentUser: User) {
-  // Check if user is already in the project
+export async function inviteTeamMember(projectId: string, project: Project, email: string, currentUser: User): Promise<{ success: true } | { success: false; inviteLink: string }> {
+  const userExists = await checkUserExistsByEmail(email);
+
+  if (!userExists) {
+    const inviteLink = `${window.location.origin}/signup?projectInvite=${projectId}`;
+    return { success: false, inviteLink };
+  }
+  
   const isAlreadyMember = project.team.some(member => member.email === email);
   if (isAlreadyMember) {
     throw new Error('Este usuario ya es miembro del proyecto.');
   }
 
-  // Check for pending invitations
   const invitationsRef = collection(db, 'invitations');
   const q = query(invitationsRef, 
     where('recipientEmail', '==', email), 
@@ -283,7 +255,6 @@ export async function inviteTeamMember(projectId: string, project: Project, emai
     throw new Error('Ya existe una invitación pendiente para este usuario en este proyecto.');
   }
 
-  // Create new invitation
   await addDoc(invitationsRef, {
     type: 'project',
     targetId: projectId,
@@ -294,6 +265,8 @@ export async function inviteTeamMember(projectId: string, project: Project, emai
     inviterName: currentUser.displayName,
     createdAt: serverTimestamp(),
   });
+
+  return { success: true };
 }
 
 export async function removeTeamMember(projectId: string, memberId: string) {
@@ -350,7 +323,6 @@ export async function createTeam(teamData: { name: string; memberEmails: string[
 
   const newTeamRef = await addDoc(collection(db, 'teams'), newTeamData);
 
-  // Send invitations to other members
   for (const email of teamData.memberEmails) {
     if (email === user.email) continue;
     await addMemberToTeam(newTeamRef.id, email, user);
@@ -405,7 +377,13 @@ export async function removeTeamFromProject(projectId: string, teamId: string) {
     });
 }
 
-export async function addMemberToTeam(teamId: string, email: string, currentUser: User) {
+export async function addMemberToTeam(teamId: string, email: string, currentUser: User): Promise<{ success: true } | { success: false; inviteLink: string }> {
+  const userExists = await checkUserExistsByEmail(email);
+  if (!userExists) {
+    const inviteLink = `${window.location.origin}/signup?teamInvite=${teamId}`;
+    return { success: false, inviteLink };
+  }
+
   const teamRef = doc(db, 'teams', teamId);
   const teamSnap = await getDoc(teamRef);
   if (!teamSnap.exists()) throw new Error("El equipo no existe.");
@@ -414,7 +392,6 @@ export async function addMemberToTeam(teamId: string, email: string, currentUser
   const isAlreadyMember = teamData.members.some(m => m.email === email);
   if (isAlreadyMember) throw new Error("Este usuario ya es miembro del equipo.");
 
-  // Check for pending invitations
   const invitationsRef = collection(db, 'invitations');
   const q = query(invitationsRef, 
     where('recipientEmail', '==', email), 
@@ -426,7 +403,6 @@ export async function addMemberToTeam(teamId: string, email: string, currentUser
     throw new Error('Ya existe una invitación pendiente para este usuario en este equipo.');
   }
 
-  // Create new invitation
   await addDoc(invitationsRef, {
     type: 'team',
     targetId: teamId,
@@ -437,6 +413,8 @@ export async function addMemberToTeam(teamId: string, email: string, currentUser
     inviterName: currentUser.displayName,
     createdAt: serverTimestamp(),
   });
+
+  return { success: true };
 }
 
 export async function removeMemberFromTeam(teamId: string, memberId: string) {
@@ -512,10 +490,23 @@ export async function respondToInvitation(invitationId: string, accepted: boolea
       };
 
       const targetRef = doc(db, invitation.type === 'project' ? 'projects' : 'teams', invitation.targetId);
-      transaction.update(targetRef, {
-        members: arrayUnion(newMember),
-        memberIds: arrayUnion(user.uid),
-      });
+      const targetSnap = await transaction.get(targetRef);
+
+      if (targetSnap.exists()) {
+        const targetData = targetSnap.data();
+        const members = targetData.members || [];
+        const memberIds = targetData.memberIds || [];
+        
+        // Ensure user is not already a member
+        if (!memberIds.includes(user.uid)) {
+          transaction.update(targetRef, {
+            members: arrayUnion(newMember),
+            memberIds: arrayUnion(user.uid),
+          });
+        }
+      } else {
+        throw new Error("El proyecto o equipo de destino ya no existe.");
+      }
     }
 
     transaction.update(invitationRef, {

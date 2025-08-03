@@ -101,11 +101,12 @@ export function TaskDetailsSheet({ task: initialTask, project, isOpen, onClose, 
   const { toast } = useToast();
   const { user } = useAuth();
   
-  const canEdit = user && project.team.find(m => m.id === user.uid)?.role === 'Admin';
+  const canEdit = !!user && project.team.some(m => m.id === user.uid);
 
   useEffect(() => {
     setTask(initialTask);
     if (initialTask) {
+        setIsLoadingTeams(true);
         // Fetch details of the currently assigned team
         if (initialTask.assignedTeamId) {
             getTeamById(initialTask.assignedTeamId).then(setAssignedTeam);
@@ -115,7 +116,6 @@ export function TaskDetailsSheet({ task: initialTask, project, isOpen, onClose, 
 
         // Fetch all teams associated with the project for the dropdown
         if (project.associatedTeamIds && project.associatedTeamIds.length > 0) {
-            setIsLoadingTeams(true);
             Promise.all(project.associatedTeamIds.map(id => getTeamById(id)))
                 .then(teams => {
                     setAssociatedTeams(teams.filter((t): t is Team => t !== null));
@@ -126,6 +126,7 @@ export function TaskDetailsSheet({ task: initialTask, project, isOpen, onClose, 
                 });
         } else {
             setAssociatedTeams([]);
+            setIsLoadingTeams(false);
         }
     }
 }, [initialTask, project.associatedTeamIds]);
@@ -181,7 +182,7 @@ export function TaskDetailsSheet({ task: initialTask, project, isOpen, onClose, 
   const handleAddSubtask = () => {
     if (!newSubtaskTitle.trim() || !isEditing || !task) return;
     const newSubtask: Subtask = {
-      id: new Date().getTime().toString(),
+      id: doc(collection(db, 'dummy')).id,
       title: newSubtaskTitle,
       status: 'pending',
     };
@@ -463,7 +464,7 @@ export function TaskDetailsSheet({ task: initialTask, project, isOpen, onClose, 
        <>
         <div className="flex-1 overflow-y-auto pr-6 -mr-6 pl-1 -ml-1">
           <div className="grid gap-6 py-4">
-             <div className="grid gap-2">
+            <div className="grid gap-2">
               <Label htmlFor="title">Título de la Tarea</Label>
               <Input
                 id="title"
@@ -534,12 +535,12 @@ export function TaskDetailsSheet({ task: initialTask, project, isOpen, onClose, 
                     <SelectValue placeholder="Seleccionar asignado..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {isLoadingTeams ? (
-                       <div className="p-2 text-center text-sm text-muted-foreground">Cargando equipos...</div>
-                    ): associatedTeams.length > 0 && (
-                        <SelectGroup>
-                           <SelectLabel>Equipos</SelectLabel>
-                            {associatedTeams.map((team) => (
+                    <SelectGroup>
+                        <SelectLabel>Equipos</SelectLabel>
+                        {isLoadingTeams ? (
+                            <div className="p-2 text-center text-sm text-muted-foreground">Cargando equipos...</div>
+                        ) : associatedTeams.length > 0 ? (
+                            associatedTeams.map((team) => (
                                <SelectItem key={team.id} value={`team-${team.id}`}>
                                     <div className="flex items-center gap-2">
                                     <Avatar className="h-6 w-6">
@@ -548,9 +549,11 @@ export function TaskDetailsSheet({ task: initialTask, project, isOpen, onClose, 
                                     <span>{team.name}</span>
                                     </div>
                                </SelectItem>
-                            ))}
-                        </SelectGroup>
-                    )}
+                            ))
+                        ) : (
+                            <div className="px-8 py-2 text-center text-sm text-muted-foreground">No hay equipos asociados al proyecto.</div>
+                        )}
+                    </SelectGroup>
                     {project.team.length > 0 && (
                         <SelectGroup>
                             <SelectLabel>Miembros</SelectLabel>

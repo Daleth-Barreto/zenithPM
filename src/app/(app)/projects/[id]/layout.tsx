@@ -33,7 +33,7 @@ export default function ProjectLayout({
 
   useEffect(() => {
     if (projectId) {
-      getProjectById(projectId).then(proj => {
+      const unsubscribe = getProjectById(projectId, (proj) => {
         if (proj) {
           setProject(proj);
         } else {
@@ -41,6 +41,7 @@ export default function ProjectLayout({
         }
         setLoading(false);
       });
+       return () => unsubscribe();
     }
   }, [projectId]);
 
@@ -69,7 +70,7 @@ export default function ProjectLayout({
     <ProjectContext.Provider value={project}>
       <div className="flex flex-col h-full">
         <ProjectHeader project={project} />
-        <div className="flex-1 overflow-y-auto">{children}</div>
+        <div className="flex-1 overflow-hidden">{children}</div>
       </div>
     </ProjectContext.Provider>
   );

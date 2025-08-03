@@ -44,7 +44,7 @@ export async function createProject(
     name: user.displayName || 'Usuario sin nombre',
     email: user.email || '',
     avatarUrl: user.photoURL || generateAvatar(user.displayName || user.email || 'U'),
-    initials: (user.displayName || 'U').charAt(0),
+    initials: (user.displayName || 'U').charAt(0).toUpperCase(),
     role: 'Admin',
     expertise: 'Sin definir',
     currentWorkload: 0,
@@ -104,25 +104,31 @@ export function getProjectsForUser(
   return unsubscribe;
 }
 
-export async function getProjectById(projectId: string): Promise<Project | null> {
+export function getProjectById(projectId: string, callback: (project: Project | null) => void) {
     const projectRef = doc(db, 'projects', projectId);
-    const projectSnap = await getDoc(projectRef);
+    
+    const unsubscribe = onSnapshot(projectRef, (projectSnap) => {
+        if (projectSnap.exists()) {
+            const data = projectSnap.data();
+            callback({
+                id: projectSnap.id,
+                name: data.name,
+                description: data.description,
+                progress: data.progress,
+                team: data.team,
+                imageUrl: data.imageUrl,
+                color: data.color,
+                tasks: [],
+            } as Project);
+        } else {
+            callback(null);
+        }
+    }, (error) => {
+      console.error("Error fetching project: ", error);
+      callback(null);
+    });
 
-    if (projectSnap.exists()) {
-        const data = projectSnap.data();
-        return {
-            id: projectSnap.id,
-            name: data.name,
-            description: data.description,
-            progress: data.progress,
-            team: data.team,
-            imageUrl: data.imageUrl,
-            color: data.color,
-            tasks: [],
-        } as Project;
-    } else {
-        return null;
-    }
+    return unsubscribe;
 }
 
 
@@ -174,13 +180,10 @@ export async function updateTask(projectId: string, taskId:string, taskData: Par
     // Sanitize the data: convert undefined to null for Firestore compatibility
     for (const key in dataToUpdate) {
         if (dataToUpdate[key as keyof typeof dataToUpdate] === undefined) {
-            dataToUpdate[key as keyof typeof dataToUpdate] = null as any;
+            delete dataToUpdate[key as keyof typeof dataToUpdate];
         }
     }
 
-    // Firestore handles Date objects automatically, no need for conversion here
-    // if it's already a Date object.
-    
     // Subtasks are just arrays of objects, which is fine for Firestore
     if (dataToUpdate.subtasks) {
         dataToUpdate.subtasks = dataToUpdate.subtasks.map(subtask => ({ ...subtask }));

@@ -44,8 +44,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { format, formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { TaskAssigner } from '../ai/task-assigner';
-import { useEffect, useState, useRef, useCallback } from 'react';
-import { deleteTask, updateTask, addCommentToTask, getTeamById, updateCommentInTask, deleteCommentFromTask, createNotification } from '@/lib/firebase-services';
+import { useEffect, useState } from 'react';
+import { deleteTask, updateTask, addCommentToTask, getTeamsForProject, getTeamById, updateCommentInTask, deleteCommentFromTask, createNotification } from '@/lib/firebase-services';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -61,6 +61,8 @@ import {
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/auth-context';
 import { Badge } from '../ui/badge';
+import { doc, collection } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 
 interface TaskDetailsSheetProps {
@@ -92,7 +94,7 @@ export function TaskDetailsSheet({ task: initialTask, project, isOpen, onClose, 
   const [isDeleting, setIsDeleting] = useState(false);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
   const [newComment, setNewComment] = useState('');
-  const [associatedTeams, setAssociatedTeams] = useState<Team[]>([]);
+  const [projectTeams, setProjectTeams] = useState<Team[]>([]);
   const [assignedTeam, setAssignedTeam] = useState<Team | null>(null);
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editingCommentText, setEditingCommentText] = useState('');
@@ -109,27 +111,20 @@ export function TaskDetailsSheet({ task: initialTask, project, isOpen, onClose, 
         setIsLoadingTeams(true);
         // Fetch details of the currently assigned team
         if (initialTask.assignedTeamId) {
-            getTeamById(initialTask.assignedTeamId).then(setAssignedTeam);
+            getTeamById(project.id, initialTask.assignedTeamId).then(setAssignedTeam);
         } else {
             setAssignedTeam(null);
         }
 
         // Fetch all teams associated with the project for the dropdown
-        if (project.associatedTeamIds && project.associatedTeamIds.length > 0) {
-            Promise.all(project.associatedTeamIds.map(id => getTeamById(id)))
-                .then(teams => {
-                    setAssociatedTeams(teams.filter((t): t is Team => t !== null));
-                    setIsLoadingTeams(false);
-                }).catch(err => {
-                    console.error("Failed to fetch associated teams", err);
-                    setIsLoadingTeams(false);
-                });
-        } else {
-            setAssociatedTeams([]);
-            setIsLoadingTeams(false);
-        }
+        const unsubscribe = getTeamsForProject(project.id, (teams) => {
+          setProjectTeams(teams);
+          setIsLoadingTeams(false);
+        });
+        
+        return () => unsubscribe();
     }
-}, [initialTask, project.associatedTeamIds]);
+  }, [initialTask, project.id]);
 
 
   if (!task) return null;
@@ -539,8 +534,8 @@ export function TaskDetailsSheet({ task: initialTask, project, isOpen, onClose, 
                         <SelectLabel>Equipos</SelectLabel>
                         {isLoadingTeams ? (
                             <div className="p-2 text-center text-sm text-muted-foreground">Cargando equipos...</div>
-                        ) : associatedTeams.length > 0 ? (
-                            associatedTeams.map((team) => (
+                        ) : projectTeams.length > 0 ? (
+                            projectTeams.map((team) => (
                                <SelectItem key={team.id} value={`team-${team.id}`}>
                                     <div className="flex items-center gap-2">
                                     <Avatar className="h-6 w-6">
@@ -551,25 +546,23 @@ export function TaskDetailsSheet({ task: initialTask, project, isOpen, onClose, 
                                </SelectItem>
                             ))
                         ) : (
-                            <div className="px-8 py-2 text-center text-sm text-muted-foreground">No hay equipos asociados al proyecto.</div>
+                            <div className="px-8 py-2 text-center text-sm text-muted-foreground">No hay equipos en el proyecto.</div>
                         )}
                     </SelectGroup>
-                    {project.team.length > 0 && (
-                        <SelectGroup>
-                            <SelectLabel>Miembros</SelectLabel>
-                            {project.team.map((member) => (
-                            <SelectItem key={member.id} value={`user-${member.id}`}>
-                                <div className="flex items-center gap-2">
-                                <Avatar className="h-6 w-6">
-                                    <AvatarImage src={member.avatarUrl} />
-                                    <AvatarFallback>{member.initials}</AvatarFallback>
-                                </Avatar>
-                                <span>{member.name}</span>
-                                </div>
-                            </SelectItem>
-                            ))}
-                        </SelectGroup>
-                    )}
+                    <SelectGroup>
+                        <SelectLabel>Miembros</SelectLabel>
+                        {project.team.map((member) => (
+                        <SelectItem key={member.id} value={`user-${member.id}`}>
+                            <div className="flex items-center gap-2">
+                            <Avatar className="h-6 w-6">
+                                <AvatarImage src={member.avatarUrl} />
+                                <AvatarFallback>{member.initials}</AvatarFallback>
+                            </Avatar>
+                            <span>{member.name}</span>
+                            </div>
+                        </SelectItem>
+                        ))}
+                    </SelectGroup>
                   </SelectContent>
                 </Select>
               </div>

@@ -21,10 +21,11 @@ import { useToast } from '@/hooks/use-toast';
 import type { Team } from '@/lib/types';
 
 interface NewTeamDialogProps {
+  projectId: string;
   onTeamCreated: (team: Team) => void;
 }
 
-export function NewTeamDialog({ onTeamCreated }: NewTeamDialogProps) {
+export function NewTeamDialog({ projectId, onTeamCreated }: NewTeamDialogProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [name, setName] = useState('');
@@ -66,7 +67,7 @@ export function NewTeamDialog({ onTeamCreated }: NewTeamDialogProps) {
     setIsLoading(true);
 
     try {
-      const newTeam = await createTeam({ name, memberEmails }, user);
+      const newTeam = await createTeam(projectId, { name, memberEmails }, user);
       onTeamCreated(newTeam);
 
       toast({

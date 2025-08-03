@@ -6,7 +6,6 @@ import {
   LayoutDashboard,
   FolderKanban,
   User,
-  Users, // Icon for Teams
   ChevronDown,
 } from 'lucide-react';
 import {
@@ -19,11 +18,9 @@ import {
   SidebarMenuButton,
   SidebarMenuSub,
   SidebarMenuSubButton,
-  SidebarMenuSubItem,
   useSidebar
 } from '@/components/ui/sidebar';
 import { Logo } from '@/components/logo';
-import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { usePathname } from 'next/navigation';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../ui/collapsible';
@@ -114,19 +111,6 @@ export function AppSidebar() {
               </SidebarMenuSub>
             </CollapsibleContent>
           </Collapsible>
-
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              isActive={isActive('/teams')}
-              tooltip={{ children: 'Equipos' }}
-            >
-              <Link href="/teams">
-                <Users />
-                <span className={cn(isSidebarCollapsed && "hidden")}>Equipos</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
 
           <SidebarMenuItem>
             <SidebarMenuButton

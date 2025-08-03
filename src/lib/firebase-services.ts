@@ -82,8 +82,7 @@ export async function createProject(
     createdAt: serverTimestamp(),
     progress: 0,
     color: projectColor,
-    imageUrl: imageUrl, 
-    associatedTeamIds: [],
+    imageUrl: imageUrl,
   });
 
   return {
@@ -102,66 +101,20 @@ export function getProjectsForUser(
   userId: string,
   callback: (projects: Project[]) => void
 ) {
-  const projectsMap = new Map<string, Project>();
-  let directUnsubscribe: () => void;
-  let teamsUnsubscribe: () => void;
-  let teamProjectsUnsubscribes: (() => void)[] = [];
+  const projectsRef = collection(db, 'projects');
+  const q = query(projectsRef, where('teamIds', 'array-contains', userId));
 
-  const updateCallback = () => {
-    callback(Array.from(projectsMap.values()).sort((a, b) => a.name.localeCompare(b.name)));
-  };
+  const unsubscribe = onSnapshot(q, (querySnapshot) => {
+    const projects: Project[] = [];
+    querySnapshot.forEach((doc) => {
+      projects.push({ id: doc.id, ...doc.data() } as Project);
+    });
+    callback(projects.sort((a,b) => a.name.localeCompare(b.name)));
+  }, (error) => {
+    console.error("Error fetching projects: ", error);
+  });
 
-  const setupListeners = () => {
-    // Listener for projects where the user is a direct member
-    const directMembershipQuery = query(collection(db, 'projects'), where('teamIds', 'array-contains', userId));
-    directUnsubscribe = onSnapshot(directMembershipQuery, (snapshot) => {
-      snapshot.docChanges().forEach((change) => {
-        if (change.type === "removed") {
-          projectsMap.delete(change.doc.id);
-        } else {
-          projectsMap.set(change.doc.id, { id: change.doc.id, ...change.doc.data() } as Project);
-        }
-      });
-      updateCallback();
-    }, console.error);
-
-    // Listener for teams and their associated projects
-    const teamsRef = collection(db, 'teams');
-    const teamsQuery = query(teamsRef, where('memberIds', 'array-contains', userId));
-    
-    teamsUnsubscribe = onSnapshot(teamsQuery, (teamsSnapshot) => {
-      const userTeamIds = teamsSnapshot.docs.map(doc => doc.id);
-
-      // Unsubscribe from all previous team-based project listeners
-      teamProjectsUnsubscribes.forEach(unsub => unsub());
-      teamProjectsUnsubscribes = [];
-      
-      if (userTeamIds.length > 0) {
-        const teamMembershipQuery = query(collection(db, 'projects'), where('associatedTeamIds', 'array-contains-any', userTeamIds));
-        const teamProjectsUnsubscribe = onSnapshot(teamMembershipQuery, (projectSnapshot) => {
-           projectSnapshot.docChanges().forEach((change) => {
-            if (change.type === "removed") {
-              projectsMap.delete(change.doc.id);
-            } else {
-              projectsMap.set(change.doc.id, { id: change.doc.id, ...change.doc.data() } as Project);
-            }
-          });
-          updateCallback();
-        }, console.error);
-        teamProjectsUnsubscribes.push(teamProjectsUnsubscribe);
-      } else {
-        updateCallback();
-      }
-    }, console.error);
-  };
-  
-  setupListeners();
-
-  return () => {
-    directUnsubscribe?.();
-    teamsUnsubscribe?.();
-    teamProjectsUnsubscribes.forEach(unsub => unsub());
-  };
+  return unsubscribe;
 }
 
 
@@ -217,62 +170,6 @@ export function getTasksForProject(
   return unsubscribe;
 }
 
-export function getTasksForTeam(teamId: string, callback: (tasks: (Task & { projectName: string, projectId: string })[]) => void) {
-  let taskListeners: (() => void)[] = [];
-  let allTasks: (Task & { projectName: string, projectId: string })[] = [];
-
-  const projectsRef = collection(db, 'projects');
-  const projectsQuery = query(projectsRef, where('associatedTeamIds', 'array-contains', teamId));
-
-  const projectsUnsubscribe = onSnapshot(projectsQuery, (projectsSnapshot) => {
-    // Clear previous task listeners
-    taskListeners.forEach(unsub => unsub());
-    taskListeners = [];
-    allTasks = [];
-
-    if (projectsSnapshot.empty) {
-      callback([]);
-      return;
-    }
-
-    projectsSnapshot.docs.forEach(projectDoc => {
-      const project = { id: projectDoc.id, name: projectDoc.data().name };
-      const tasksRef = collection(db, 'projects', project.id, 'tasks');
-      const tasksQuery = query(tasksRef, where('assignedTeamId', '==', teamId));
-
-      const tasksUnsubscribe = onSnapshot(tasksQuery, (tasksSnapshot) => {
-        const projectTasks = tasksSnapshot.docs.map(doc => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            ...data,
-            dueDate: data.dueDate?.toDate ? data.dueDate.toDate() : undefined,
-            comments: (data.comments || []).map((comment: any) => ({
-              ...comment,
-              createdAt: comment.createdAt?.toDate ? comment.createdAt.toDate() : new Date(),
-            })),
-            projectName: project.name,
-            projectId: project.id,
-          } as Task & { projectName: string, projectId: string };
-        });
-
-        // Update the full list by replacing tasks for the current project
-        allTasks = allTasks.filter(t => t.projectId !== project.id).concat(projectTasks);
-        callback(allTasks.sort((a, b) => a.projectName.localeCompare(b.projectName) || a.title.localeCompare(b.title)));
-      });
-
-      taskListeners.push(tasksUnsubscribe);
-    });
-  });
-
-  // Return a cleanup function that unsubscribes from all listeners
-  return () => {
-    projectsUnsubscribe();
-    taskListeners.forEach(unsub => unsub());
-  };
-}
-
-
 export async function updateTaskStatus(projectId: string, taskId: string, newStatus: TaskStatus, order: number) {
   const taskRef = doc(db, 'projects', projectId, 'tasks', taskId);
   await updateDoc(taskRef, { status: newStatus, order });
@@ -290,11 +187,6 @@ export async function updateTask(projectId: string, taskId:string, taskData: Par
     // Create a copy to avoid modifying the original object
     const dataToUpdate = { ...taskData };
     
-    // Ensure subtasks is an array, even if it's empty
-    if ('subtasks' in dataToUpdate && !dataToUpdate.subtasks) {
-        dataToUpdate.subtasks = [];
-    }
-    
     // Firestore does not allow `undefined` values.
     // We need to clean the object before sending it.
     Object.keys(dataToUpdate).forEach(key => {
@@ -303,6 +195,11 @@ export async function updateTask(projectId: string, taskId:string, taskData: Par
             delete dataToUpdate[typedKey];
         }
     });
+    
+    // Ensure subtasks is handled correctly
+    if ('subtasks' in dataToUpdate) {
+        dataToUpdate.subtasks = dataToUpdate.subtasks || [];
+    }
 
     await updateDoc(taskRef, dataToUpdate);
 }
@@ -404,6 +301,7 @@ export async function inviteTeamMember(projectId: string, project: Project, emai
   const q = query(invitationsRef, 
     where('recipientEmail', '==', email.toLowerCase()), 
     where('targetId', '==', projectId),
+    where('type', '==', 'project'),
     where('status', '==', 'pending')
   );
   const existingInvites = await getDocs(q);
@@ -459,9 +357,11 @@ export async function updateTeamMemberRole(projectId: string, memberId: string, 
     });
 }
 
-// --- TEAMS ---
+// --- TEAMS (PROJECT-SPECIFIC) ---
 
-export async function createTeam(teamData: { name: string; memberEmails: string[] }, user: User): Promise<Team> {
+export async function createTeam(projectId: string, teamData: { name: string; memberEmails: string[] }, user: User): Promise<Team> {
+  const teamsRef = collection(db, 'projects', projectId, 'teams');
+  
   const owner: TeamMember = {
     id: user.uid,
     name: user.displayName || 'Usuario sin nombre',
@@ -476,17 +376,18 @@ export async function createTeam(teamData: { name: string; memberEmails: string[
   const newTeamData = {
     name: teamData.name,
     ownerId: user.uid,
+    projectId: projectId,
     members: [owner],
     memberIds: [user.uid],
     createdAt: serverTimestamp(),
   };
 
-  const newTeamRef = await addDoc(collection(db, 'teams'), newTeamData);
+  const newTeamRef = await addDoc(teamsRef, newTeamData);
 
   // Send invitations for the other members
   for (const email of teamData.memberEmails) {
     if (email.toLowerCase() === user.email?.toLowerCase()) continue;
-    await addMemberToTeam(newTeamRef.id, email, user);
+    await addMemberToTeam(projectId, newTeamRef.id, email, user);
   }
 
   const newTeamDoc = await getDoc(newTeamRef);
@@ -497,25 +398,25 @@ export async function createTeam(teamData: { name: string; memberEmails: string[
 }
 
 
-export function getTeamsForUser(userId: string, callback: (teams: Team[]) => void) {
-  const teamsRef = collection(db, 'teams');
-  const q = query(teamsRef, where('memberIds', 'array-contains', userId));
+export function getTeamsForProject(projectId: string, callback: (teams: Team[]) => void) {
+  const teamsRef = collection(db, 'projects', projectId, 'teams');
+  const q = query(teamsRef, orderBy('name', 'asc'));
 
   const unsubscribe = onSnapshot(q, (querySnapshot) => {
     const teams: Team[] = [];
     querySnapshot.forEach((doc) => {
       teams.push({ id: doc.id, ...doc.data() } as Team);
     });
-    callback(teams.sort((a,b) => a.name.localeCompare(b.name)));
+    callback(teams);
   }, (error) => {
-    console.error("Error fetching teams: ", error);
+    console.error("Error fetching teams for project: ", error);
   });
 
   return unsubscribe;
 }
 
-export async function getTeamById(teamId: string): Promise<Team | null> {
-    const teamRef = doc(db, 'teams', teamId);
+export async function getTeamById(projectId: string, teamId: string): Promise<Team | null> {
+    const teamRef = doc(db, 'projects', projectId, 'teams', teamId);
     const teamSnap = await getDoc(teamRef);
     if (teamSnap.exists()) {
         return { id: teamSnap.id, ...teamSnap.data() } as Team;
@@ -524,8 +425,8 @@ export async function getTeamById(teamId: string): Promise<Team | null> {
     }
 }
 
-export function onTeamUpdate(teamId: string, callback: (team: Team | null) => void) {
-  const teamRef = doc(db, 'teams', teamId);
+export function onTeamUpdate(projectId: string, teamId: string, callback: (team: Team | null) => void) {
+  const teamRef = doc(db, 'projects', projectId, 'teams', teamId);
   return onSnapshot(teamRef, (doc) => {
     if (doc.exists()) {
       callback({ id: doc.id, ...doc.data() } as Team);
@@ -538,29 +439,14 @@ export function onTeamUpdate(teamId: string, callback: (team: Team | null) => vo
   });
 }
 
-
-export async function addTeamToProject(projectId: string, teamId: string) {
-    const projectRef = doc(db, 'projects', projectId);
-    await updateDoc(projectRef, {
-        associatedTeamIds: arrayUnion(teamId)
-    });
-}
-
-export async function removeTeamFromProject(projectId: string, teamId: string) {
-    const projectRef = doc(db, 'projects', projectId);
-    await updateDoc(projectRef, {
-        associatedTeamIds: arrayRemove(teamId)
-    });
-}
-
-export async function addMemberToTeam(teamId: string, email: string, currentUser: User): Promise<{ success: true } | { success: false; inviteLink: string }> {
+export async function addMemberToTeam(projectId: string, teamId: string, email: string, currentUser: User): Promise<{ success: true } | { success: false; inviteLink: string }> {
   const userExists = await checkUserExistsByEmail(email);
   if (!userExists) {
-    const inviteLink = `${window.location.origin}/signup?teamInvite=${teamId}`;
+    const inviteLink = `${window.location.origin}/signup?teamInvite=${teamId}&projectInvite=${projectId}`;
     return { success: false, inviteLink };
   }
 
-  const teamRef = doc(db, 'teams', teamId);
+  const teamRef = doc(db, 'projects', projectId, 'teams', teamId);
   const teamSnap = await getDoc(teamRef);
   if (!teamSnap.exists()) throw new Error("El equipo no existe.");
   const teamData = teamSnap.data() as Team;
@@ -572,6 +458,7 @@ export async function addMemberToTeam(teamId: string, email: string, currentUser
   const q = query(invitationsRef, 
     where('recipientEmail', '==', email.toLowerCase()), 
     where('targetId', '==', teamId),
+    where('type', '==', 'team'),
     where('status', '==', 'pending')
   );
   const existingInvites = await getDocs(q);
@@ -583,6 +470,7 @@ export async function addMemberToTeam(teamId: string, email: string, currentUser
     type: 'team',
     targetId: teamId,
     targetName: teamData.name,
+    projectId: projectId, // Add projectId to the invitation
     recipientEmail: email.toLowerCase(),
     status: 'pending',
     inviterId: currentUser.uid,
@@ -593,8 +481,8 @@ export async function addMemberToTeam(teamId: string, email: string, currentUser
   return { success: true };
 }
 
-export async function removeMemberFromTeam(teamId: string, memberId: string) {
-  const teamRef = doc(db, 'teams', teamId);
+export async function removeMemberFromTeam(projectId: string, teamId: string, memberId: string) {
+  const teamRef = doc(db, 'projects', projectId, 'teams', teamId);
   await runTransaction(db, async (transaction) => {
     const teamSnap = await transaction.get(teamRef);
     if (teamSnap.exists()) {
@@ -609,8 +497,8 @@ export async function removeMemberFromTeam(teamId: string, memberId: string) {
   });
 }
 
-export async function updateTeamMemberRoleInTeam(teamId: string, memberId: string, role: 'Admin' | 'Miembro') {
-    const teamRef = doc(db, 'teams', teamId);
+export async function updateTeamMemberRoleInTeam(projectId: string, teamId: string, memberId: string, role: 'Admin' | 'Miembro') {
+    const teamRef = doc(db, 'projects', projectId, 'teams', teamId);
     await runTransaction(db, async (transaction) => {
       const teamSnap = await transaction.get(teamRef);
       if (teamSnap.exists()) {
@@ -666,16 +554,25 @@ export async function respondToInvitation(invitationId: string, accepted: boolea
         currentWorkload: 0,
       };
       
-      const targetCollection = invitation.type === 'project' ? 'projects' : 'teams';
-      const targetRef = doc(db, targetCollection, invitation.targetId);
+      let targetRef;
+      let memberIdField;
+      let membersField;
+
+      if (invitation.type === 'project') {
+        targetRef = doc(db, 'projects', invitation.targetId);
+        memberIdField = 'teamIds';
+        membersField = 'team';
+      } else { // 'team'
+        if (!invitation.projectId) throw new Error("La invitación al equipo no tiene un proyecto asociado.");
+        targetRef = doc(db, 'projects', invitation.projectId, 'teams', invitation.targetId);
+        memberIdField = 'memberIds';
+        membersField = 'members';
+      }
+      
       const targetSnap = await transaction.get(targetRef);
 
       if (targetSnap.exists()) {
         const targetData = targetSnap.data();
-
-        // Use 'teamIds' for projects and 'memberIds' for teams
-        const memberIdField = targetCollection === 'projects' ? 'teamIds' : 'memberIds';
-        const membersField = targetCollection === 'projects' ? 'team' : 'members';
 
         const memberIds = targetData[memberIdField] || [];
         
@@ -695,5 +592,3 @@ export async function respondToInvitation(invitationId: string, accepted: boolea
     });
   });
 }
-
-    

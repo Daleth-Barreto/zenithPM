@@ -17,6 +17,7 @@ export interface Team {
   id: string;
   name: string;
   ownerId: string;
+  projectId: string;
   members: TeamMember[];
   memberIds: string[];
   createdAt: any;
@@ -72,7 +73,6 @@ export interface Project {
   progress: number;
   team: TeamMember[];
   teamIds: string[]; // User IDs
-  associatedTeamIds?: string[]; // Team IDs
   tasks: Task[];
 }
 
@@ -81,6 +81,7 @@ export interface Invitation {
   type: 'project' | 'team';
   targetId: string;
   targetName: string;
+  projectId?: string; // Only for team invitations
   recipientEmail: string;
   status: 'pending' | 'accepted' | 'declined';
   inviterName: string;

@@ -43,7 +43,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { format, formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { TaskAssigner } from '../ai/task-assigner';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { deleteTask, updateTask, addCommentToTask, updateCommentInTask, deleteCommentFromTask, createNotification } from '@/lib/firebase-services';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -98,25 +98,35 @@ export function TaskDetailsSheet({ task: initialTask, project, isOpen, onClose, 
   const { toast } = useToast();
   const { user } = useAuth();
   
-  // No canEdit state, all can edit
   const isEditing = true;
+
+  // This ref helps prevent saving the initial (potentially stale) state on first load
+  const isMounted = useRef(false);
+
+  useEffect(() => {
+    isMounted.current = true;
+    return () => { isMounted.current = false };
+  }, []);
 
   useEffect(() => {
     setTask(initialTask);
   }, [initialTask]);
 
-
   if (!task) return null;
 
-  const handleFieldChange = (field: keyof Task, value: any) => {
+  const handleLocalChange = (field: keyof Task, value: any) => {
     if (!task) return;
-    const updatedTask = { ...task, [field]: value };
-    setTask(updatedTask);
+    setTask(prevTask => prevTask ? { ...prevTask, [field]: value } : null);
+  };
+  
+  const handleDebouncedSave = async (updatedTask: Task) => {
+     const { id, ...taskData } = updatedTask;
+     await updateTask(project.id, id, taskData);
   }
 
   const handleAssigneeChange = (value: string) => {
     const assignee = project.team.find(m => m.id === value);
-    handleFieldChange('assignee', assignee || null);
+    handleLocalChange('assignee', assignee || null);
   }
   
   const handleSubtaskStatusChange = async (subtaskId: string, status: SubtaskStatus) => {
@@ -125,9 +135,11 @@ export function TaskDetailsSheet({ task: initialTask, project, isOpen, onClose, 
     const updatedSubtasks = task.subtasks?.map(st =>
       st.id === subtaskId ? { ...st, status } : st
     );
+    
+    // Update local state immediately for responsiveness
+    setTask(prev => prev ? { ...prev, subtasks: updatedSubtasks } : null);
 
-    const updatedTask = { ...task, subtasks: updatedSubtasks };
-    setTask(updatedTask); // Optimistic update
+    // Persist to Firestore
     await updateTask(project.id, task.id, { subtasks: updatedSubtasks });
     
     if (status === 'completed' && user && task.assignee && task.assignee.id !== user.uid) {
@@ -139,7 +151,7 @@ export function TaskDetailsSheet({ task: initialTask, project, isOpen, onClose, 
     }
   };
   
-  const handleAddSubtask = () => {
+  const handleAddSubtask = async () => {
     if (!newSubtaskTitle.trim() || !task) return;
     const newSubtask: Subtask = {
       id: doc(collection(db, 'dummy')).id,
@@ -147,14 +159,20 @@ export function TaskDetailsSheet({ task: initialTask, project, isOpen, onClose, 
       status: 'pending',
     };
     const updatedSubtasks = [...(task.subtasks || []), newSubtask];
-    handleFieldChange('subtasks', updatedSubtasks);
+    
+    setTask(prev => prev ? { ...prev, subtasks: updatedSubtasks } : null);
     setNewSubtaskTitle('');
+
+    await updateTask(project.id, task.id, { subtasks: updatedSubtasks });
   };
   
-  const handleDeleteSubtask = (subtaskId: string) => {
+  const handleDeleteSubtask = async (subtaskId: string) => {
     if (!task) return;
     const updatedSubtasks = task.subtasks?.filter(st => st.id !== subtaskId);
-    handleFieldChange('subtasks', updatedSubtasks);
+
+    setTask(prev => prev ? { ...prev, subtasks: updatedSubtasks } : null);
+
+    await updateTask(project.id, task.id, { subtasks: updatedSubtasks });
   }
 
   const handleAddComment = async () => {
@@ -266,7 +284,7 @@ export function TaskDetailsSheet({ task: initialTask, project, isOpen, onClose, 
                     <Input
                         id="title"
                         value={task?.title || ''}
-                        onChange={(e) => handleFieldChange('title', e.target.value)}
+                        onChange={(e) => handleLocalChange('title', e.target.value)}
                         className="text-2xl font-semibold border-none -ml-3 h-auto p-0 focus-visible:ring-1 focus-visible:ring-ring"
                         placeholder="Título de la tarea"
                     />
@@ -285,7 +303,7 @@ export function TaskDetailsSheet({ task: initialTask, project, isOpen, onClose, 
               <Textarea 
                 id="description" 
                 value={task?.description || ''}
-                onChange={(e) => handleFieldChange('description', e.target.value)} 
+                onChange={(e) => handleLocalChange('description', e.target.value)} 
                 rows={5} 
                 placeholder="Añade una descripción más detallada..."
               />
@@ -305,10 +323,17 @@ export function TaskDetailsSheet({ task: initialTask, project, isOpen, onClose, 
                         />
                         <Input
                             value={subtask.title}
-                            onChange={(e) => {
+                            onBlur={async (e) => {
                                 const newTitle = e.target.value;
                                 const updatedSubtasks = task.subtasks?.map(st => st.id === subtask.id ? {...st, title: newTitle} : st);
-                                handleFieldChange('subtasks', updatedSubtasks);
+                                await updateTask(project.id, task.id, { subtasks: updatedSubtasks });
+                            }}
+                             onChange={(e) => {
+                                const newTitle = e.target.value;
+                                setTask(prev => prev ? {
+                                    ...prev,
+                                    subtasks: prev.subtasks?.map(st => st.id === subtask.id ? {...st, title: newTitle} : st)
+                                }: null);
                             }}
                             className={cn(
                                 "text-sm font-medium leading-none flex-1 border-none h-auto p-0 focus-visible:ring-0",
@@ -368,7 +393,7 @@ export function TaskDetailsSheet({ task: initialTask, project, isOpen, onClose, 
                   <AlertCircle className="inline-block mr-2 h-4 w-4" />
                   Prioridad
                 </Label>
-                <Select value={task?.priority} onValueChange={(v: TaskPriority) => handleFieldChange('priority', v)}>
+                <Select value={task?.priority} onValueChange={(v: TaskPriority) => handleLocalChange('priority', v)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Establecer prioridad..." />
                   </SelectTrigger>
@@ -397,7 +422,7 @@ export function TaskDetailsSheet({ task: initialTask, project, isOpen, onClose, 
                       mode="single" 
                       locale={es}
                       selected={task?.dueDate ? new Date(task.dueDate) : undefined}
-                      onSelect={(date) => handleFieldChange('dueDate', date)}
+                      onSelect={(date) => handleLocalChange('dueDate', date)}
                     />
                   </PopoverContent>
                 </Popover>
@@ -408,7 +433,7 @@ export function TaskDetailsSheet({ task: initialTask, project, isOpen, onClose, 
                   <Tag className="inline-block mr-2 h-4 w-4" />
                   Estado
                 </Label>
-                <Select value={task?.status} onValueChange={(v: TaskStatus) => handleFieldChange('status', v)}>
+                <Select value={task?.status} onValueChange={(v: TaskStatus) => handleLocalChange('status', v)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Establecer estado..." />
                   </SelectTrigger>

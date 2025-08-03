@@ -11,14 +11,13 @@ import { Logo } from '@/components/logo';
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, CheckCircle } from 'lucide-react';
+import { Loader2, Eye, EyeOff } from 'lucide-react';
 import { getFirebaseAuthErrorMessage } from '@/lib/firebase-errors';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { cn } from '@/lib/utils';
-
+import { PasswordKanban } from '@/components/auth/password-kanban';
 
 function GoogleIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -52,13 +51,20 @@ function GoogleIcon(props: React.SVGProps<SVGSVGElement>) {
 const signupSchema = z.object({
   fullName: z.string().min(2, { message: "El nombre debe tener al menos 2 caracteres." }),
   email: z.string().email({ message: "Por favor, introduce un correo electrónico válido." }),
+  company: z.string().optional(),
+  role: z.string().optional(),
   password: z.string()
     .min(8, { message: "La contraseña debe tener al menos 8 caracteres." })
     .regex(/[A-Z]/, { message: "La contraseña debe contener al menos una mayúscula." })
     .regex(/[a-z]/, { message: "La contraseña debe contener al menos una minúscula." })
     .regex(/[0-9]/, { message: "La contraseña debe contener al menos un número." })
     .regex(/[^A-Za-z0-9]/, { message: "La contraseña debe contener al menos un carácter especial." }),
+  confirmPassword: z.string()
+}).refine(data => data.password === data.confirmPassword, {
+  message: "Las contraseñas no coinciden.",
+  path: ["confirmPassword"],
 });
+
 
 export default function SignupPage() {
   const router = useRouter();
@@ -66,25 +72,21 @@ export default function SignupPage() {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const form = useForm<z.infer<typeof signupSchema>>({
     resolver: zodResolver(signupSchema),
     defaultValues: {
       fullName: '',
       email: '',
+      company: '',
+      role: '',
       password: '',
+      confirmPassword: '',
     },
   });
 
   const passwordValue = form.watch('password');
-
-  const passwordRequirements = [
-    { id: 'length', text: 'Al menos 8 caracteres', regex: /.{8,}/ },
-    { id: 'uppercase', text: 'Una letra mayúscula', regex: /[A-Z]/ },
-    { id: 'lowercase', text: 'Una letra minúscula', regex: /[a-z]/ },
-    { id: 'number', text: 'Un número', regex: /[0-9]/ },
-    { id: 'special', text: 'Un carácter especial', regex: /[^A-Za-z0-9]/ },
-  ];
 
   useEffect(() => {
     if (!authLoading && user) {
@@ -125,21 +127,21 @@ export default function SignupPage() {
   const isLoading = isSubmitting || isGoogleLoading;
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <Card className="mx-auto max-w-sm">
-        <CardHeader>
-          <div className="flex items-center justify-center mb-4">
-            <Logo className="h-10 w-10 text-primary" />
+    <div className="w-full lg:grid lg:min-h-screen lg:grid-cols-2 xl:min-h-screen">
+      <div className="flex items-center justify-center py-12">
+        <div className="mx-auto grid w-[400px] gap-6">
+          <div className="grid gap-2 text-center">
+            <div className="flex items-center justify-center mb-4">
+              <Logo className="h-10 w-10 text-primary" />
+            </div>
+            <h1 className="text-3xl font-bold">Crea tu cuenta</h1>
+            <p className="text-balance text-muted-foreground">
+              Ingresa tu información para comenzar con ZenithPM.
+            </p>
           </div>
-          <CardTitle className="text-xl text-center">Crea tu cuenta</CardTitle>
-          <CardDescription className="text-center">
-            Ingresa tu información para comenzar con ZenithPM.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(handleSignup)} className="grid gap-4">
-              <FormField
+               <FormField
                 control={form.control}
                 name="fullName"
                 render={({ field }) => (
@@ -173,6 +175,34 @@ export default function SignupPage() {
                   </FormItem>
                 )}
               />
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="company"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Empresa <span className="text-muted-foreground/80">(Opcional)</span></FormLabel>
+                      <FormControl>
+                        <Input placeholder="Tu Empresa" {...field} disabled={isLoading} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="role"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Rol <span className="text-muted-foreground/80">(Opcional)</span></FormLabel>
+                      <FormControl>
+                        <Input placeholder="p.ej., Freelancer" {...field} disabled={isLoading} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
               <FormField
                 control={form.control}
                 name="password"
@@ -180,39 +210,69 @@ export default function SignupPage() {
                   <FormItem>
                     <FormLabel>Contraseña</FormLabel>
                     <FormControl>
-                      <Input
-                        type="password"
-                        {...field}
-                        disabled={isLoading}
-                      />
+                      <div className="relative">
+                        <Input
+                          type={showPassword ? "text" : "password"}
+                          {...field}
+                          disabled={isLoading}
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground"
+                          onClick={() => setShowPassword(!showPassword)}
+                        >
+                          {showPassword ? <EyeOff /> : <Eye />}
+                        </Button>
+                      </div>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-               <div className="grid gap-1 text-xs text-muted-foreground">
-                  {passwordRequirements.map(req => {
-                    const met = req.regex.test(passwordValue);
-                    return (
-                      <div key={req.id} className="flex items-center gap-2">
-                        <CheckCircle className={cn("h-4 w-4", met ? "text-green-500" : "text-muted-foreground/50")} />
-                        <span className={cn(met && "text-foreground")}>{req.text}</span>
+              <FormField
+                control={form.control}
+                name="confirmPassword"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Confirmar Contraseña</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                         <Input
+                          type={showPassword ? "text" : "password"}
+                          {...field}
+                          disabled={isLoading}
+                        />
+                         <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground"
+                          onClick={() => setShowPassword(!showPassword)}
+                        >
+                          {showPassword ? <EyeOff /> : <Eye />}
+                        </Button>
                       </div>
-                    );
-                  })}
-                </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Crear una cuenta
               </Button>
             </form>
           </Form>
-          <div className="relative my-4">
+
+           <div className="relative my-2">
             <div className="absolute inset-0 flex items-center">
               <span className="w-full border-t" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-card px-2 text-muted-foreground">O regístrate con</span>
+              <span className="bg-background px-2 text-muted-foreground">O regístrate con</span>
             </div>
           </div>
           <Button variant="outline" className="w-full" onClick={handleGoogleLogin} disabled={isLoading}>
@@ -223,14 +283,20 @@ export default function SignupPage() {
             )}
             Registrarse con Google
           </Button>
+
           <div className="mt-4 text-center text-sm">
-            ¿Ya tienes una cuenta?{' '}
+            ¿Ya tienes una cuenta?{" "}
             <Link href="/login" className="underline">
               Iniciar Sesión
             </Link>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
+      <div className="hidden bg-muted lg:flex items-center justify-center p-8">
+        <PasswordKanban password={passwordValue} />
+      </div>
     </div>
   );
 }
+
+    

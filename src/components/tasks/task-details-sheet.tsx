@@ -262,13 +262,15 @@ export function TaskDetailsSheet({ task: initialTask, project, isOpen, onClose, 
         <SheetHeader>
           <div className="flex justify-between items-start">
             <div className="flex-1 pr-10">
-                <Input
-                    id="title"
-                    value={task?.title || ''}
-                    onChange={(e) => handleFieldChange('title', e.target.value)}
-                    className="text-2xl font-semibold border-none -ml-3 focus-visible:ring-1 focus-visible:ring-ring"
-                    placeholder="Título de la tarea"
-                />
+                <SheetTitle>
+                    <Input
+                        id="title"
+                        value={task?.title || ''}
+                        onChange={(e) => handleFieldChange('title', e.target.value)}
+                        className="text-2xl font-semibold border-none -ml-3 h-auto p-0 focus-visible:ring-1 focus-visible:ring-ring"
+                        placeholder="Título de la tarea"
+                    />
+                </SheetTitle>
                 <SheetDescription>
                     En el proyecto <span className="font-semibold text-primary">{project.name}</span>
                 </SheetDescription>

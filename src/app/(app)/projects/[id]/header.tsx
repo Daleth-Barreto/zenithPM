@@ -17,20 +17,16 @@ export function ProjectHeader({ project }: ProjectHeaderProps) {
   const pathname = usePathname();
 
   const getActiveTab = () => {
-    if (pathname.endsWith('/board')) return 'board';
-    if (pathname.endsWith('/tasks')) return 'tasks';
-    if (pathname.endsWith('/calendar')) return 'calendar';
-    if (pathname.endsWith('/teams')) return 'teams';
-    if (pathname.endsWith('/analytics')) return 'analytics';
-    if (pathname.endsWith('/settings')) return 'settings';
-    return 'board';
+    const segments = pathname.split('/');
+    return segments[segments.length - 1] || 'board';
   };
 
   const tabs = [
     { id: 'board', label: 'Tablero', href: `/projects/${project.id}/board` },
     { id: 'tasks', label: 'Tareas', href: `/projects/${project.id}/tasks` },
-    { id: 'teams', label: 'Equipos', href: `/projects/${project.id}/teams` },
+    { id: 'timeline', label: 'Cronograma', href: `/projects/${project.id}/timeline` },
     { id: 'calendar', label: 'Calendario', href: `/projects/${project.id}/calendar` },
+    { id: 'teams', label: 'Equipos', href: `/projects/${project.id}/teams` },
     { id: 'analytics', label: 'Analíticas', href: `/projects/${project.id}/analytics` },
     { id: 'settings', label: 'Configuración', href: `/projects/${project.id}/settings` },
   ];

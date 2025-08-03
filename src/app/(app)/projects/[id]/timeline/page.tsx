@@ -1,0 +1,119 @@
+
+'use client';
+
+import { useProject } from '../layout';
+import { getTasksForProject } from '@/lib/firebase-services';
+import { useEffect, useState, useMemo } from 'react';
+import type { Task } from '@/lib/types';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { format, differenceInDays, addDays } from 'date-fns';
+import { es } from 'date-fns/locale';
+
+export default function ProjectTimelinePage() {
+  const project = useProject();
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (project) {
+      const unsubscribe = getTasksForProject(project.id, (fetchedTasks) => {
+        setTasks(fetchedTasks);
+        setLoading(false);
+      });
+      return () => unsubscribe();
+    }
+  }, [project]);
+  
+  const { tasksWithDates, timelineStart, timelineEnd, totalDays } = useMemo(() => {
+    const tasksWithDates = tasks.filter(task => task.startDate && task.dueDate);
+    if (tasksWithDates.length === 0) {
+        return { tasksWithDates: [], timelineStart: new Date(), timelineEnd: addDays(new Date(), 30), totalDays: 30 };
+    }
+
+    const allDates = tasksWithDates.flatMap(t => [new Date(t.startDate!), new Date(t.dueDate!)]);
+    const timelineStart = new Date(Math.min(...allDates.map(d => d.getTime())));
+    const timelineEnd = new Date(Math.max(...allDates.map(d => d.getTime())));
+    const totalDays = differenceInDays(timelineEnd, timelineStart) + 1;
+
+    return { tasksWithDates, timelineStart, timelineEnd, totalDays };
+
+  }, [tasks]);
+
+
+  if (loading || !project) {
+    return (
+      <div className="p-4 md:p-8">
+        <Card><Skeleton className="h-96 w-full" /></Card>
+      </div>
+    );
+  }
+  
+  const getBarStyles = (task: Task) => {
+    if (!task.startDate || !task.dueDate) return { gridColumn: '1 / span 1' };
+    
+    const start = new Date(task.startDate);
+    const end = new Date(task.dueDate);
+
+    const startOffset = differenceInDays(start, timelineStart);
+    const duration = differenceInDays(end, start) + 1;
+
+    return {
+      gridColumn: `${startOffset + 2} / span ${duration > 0 ? duration : 1}`
+    }
+  }
+
+  return (
+    <div className="p-4 md:p-8">
+       <Card>
+        <CardHeader>
+            <CardTitle>Cronograma del Proyecto</CardTitle>
+            <CardDescription>Visualiza la duración y la planificación de las tareas a lo largo del tiempo.</CardDescription>
+        </CardHeader>
+        <CardContent>
+            {tasksWithDates.length > 0 ? (
+                <div className="overflow-x-auto">
+                    <div className="grid gap-y-2" style={{ gridTemplateColumns: `minmax(250px, 1fr) repeat(${totalDays}, minmax(40px, 1fr))`}}>
+                        {/* Header */}
+                        <div className="sticky left-0 bg-background z-10 font-semibold p-2 border-b">Tarea</div>
+                        {Array.from({ length: totalDays }).map((_, i) => (
+                             <div key={i} className="text-center text-xs text-muted-foreground p-2 border-b border-l">
+                                {format(addDays(timelineStart, i), 'd MMM', {locale: es})}
+                             </div>
+                        ))}
+
+                        {/* Rows */}
+                        {tasksWithDates.map(task => (
+                            <React.Fragment key={task.id}>
+                                <div className="sticky left-0 bg-background z-10 p-2 border-b flex items-center gap-3 truncate">
+                                     {task.assignee && (
+                                        <Avatar className="h-6 w-6">
+                                            <AvatarImage src={task.assignee.avatarUrl} />
+                                            <AvatarFallback>{task.assignee.initials}</AvatarFallback>
+                                        </Avatar>
+                                     )}
+                                    <span className="truncate">{task.title}</span>
+                                </div>
+                                <div className="col-span-full grid" style={{ gridTemplateColumns: `subgrid`}}>
+                                    <div style={getBarStyles(task)} className="bg-primary/80 rounded-lg h-6 my-auto flex items-center px-2 text-primary-foreground text-xs truncate">
+                                        {task.title}
+                                    </div>
+                                </div>
+                            </React.Fragment>
+                        ))}
+                    </div>
+                </div>
+            ) : (
+                <div className="text-center py-16">
+                    <p className="text-muted-foreground">No hay tareas con fechas de inicio y fin para mostrar en el cronograma.</p>
+                    <p className="text-sm text-muted-foreground mt-2">Asegúrate de que tus tareas tengan tanto `startDate` como `dueDate`.</p>
+                </div>
+            )}
+        </CardContent>
+       </Card>
+    </div>
+  );
+}

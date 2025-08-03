@@ -54,6 +54,7 @@ export interface Task {
   description?: string;
   status: TaskStatus;
   priority: TaskPriority;
+  startDate?: Date;
   dueDate?: Date;
   assignee?: TeamMember | null;
   collaborators?: TeamMember[];

@@ -45,7 +45,7 @@ import { format, formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { TaskAssigner } from '../ai/task-assigner';
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { deleteTask, updateTask, addCommentToTask, getTeamById, updateCommentInTask, deleteCommentFromTask } from '@/lib/firebase-services';
+import { deleteTask, updateTask, addCommentToTask, getTeamById, updateCommentInTask, deleteCommentFromTask, createNotification } from '@/lib/firebase-services';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -96,6 +96,7 @@ export function TaskDetailsSheet({ task: initialTask, project, isOpen, onClose, 
   const [assignedTeam, setAssignedTeam] = useState<Team | null>(null);
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editingCommentText, setEditingCommentText] = useState('');
+  const [isLoadingTeams, setIsLoadingTeams] = useState(false);
 
   const { toast } = useToast();
   const { user } = useAuth();
@@ -104,23 +105,30 @@ export function TaskDetailsSheet({ task: initialTask, project, isOpen, onClose, 
 
   useEffect(() => {
     setTask(initialTask);
-    if (initialTask?.assignedTeamId) {
-      getTeamById(initialTask.assignedTeamId).then(setAssignedTeam);
-    } else {
-      setAssignedTeam(null);
-    }
-  }, [initialTask]);
+    if (initialTask) {
+        // Fetch details of the currently assigned team
+        if (initialTask.assignedTeamId) {
+            getTeamById(initialTask.assignedTeamId).then(setAssignedTeam);
+        } else {
+            setAssignedTeam(null);
+        }
 
-  useEffect(() => {
-    if (project.associatedTeamIds && project.associatedTeamIds.length > 0) {
-      Promise.all(project.associatedTeamIds.map(id => getTeamById(id)))
-        .then(teams => {
-          setAssociatedTeams(teams.filter((t): t is Team => t !== null));
-        });
-    } else {
-      setAssociatedTeams([]);
+        // Fetch all teams associated with the project for the dropdown
+        if (project.associatedTeamIds && project.associatedTeamIds.length > 0) {
+            setIsLoadingTeams(true);
+            Promise.all(project.associatedTeamIds.map(id => getTeamById(id)))
+                .then(teams => {
+                    setAssociatedTeams(teams.filter((t): t is Team => t !== null));
+                    setIsLoadingTeams(false);
+                }).catch(err => {
+                    console.error("Failed to fetch associated teams", err);
+                    setIsLoadingTeams(false);
+                });
+        } else {
+            setAssociatedTeams([]);
+        }
     }
-  }, [project.associatedTeamIds]);
+}, [initialTask, project.associatedTeamIds]);
 
 
   if (!task) return null;
@@ -148,7 +156,7 @@ export function TaskDetailsSheet({ task: initialTask, project, isOpen, onClose, 
     }
   }
   
-  const handleSubtaskStatusChange = (subtaskId: string, status: SubtaskStatus) => {
+  const handleSubtaskStatusChange = async (subtaskId: string, status: SubtaskStatus) => {
     if (!task) return;
 
     const updatedSubtasks = task.subtasks?.map(st =>
@@ -159,7 +167,14 @@ export function TaskDetailsSheet({ task: initialTask, project, isOpen, onClose, 
         handleFieldChange('subtasks', updatedSubtasks);
     } else {
         // If in view mode, update directly
-        updateTask(project.id, task.id, { subtasks: updatedSubtasks });
+        await updateTask(project.id, task.id, { subtasks: updatedSubtasks });
+        if(status === 'completed' && user){
+            createNotification({
+                userId: task.assignee?.id || project.team.find(m => m.role === 'Admin')?.id!,
+                message: `${user.displayName} completó una subtarea en: "${task.title}"`,
+                link: `/projects/${project.id}/board`,
+            })
+        }
     }
   };
   
@@ -448,14 +463,14 @@ export function TaskDetailsSheet({ task: initialTask, project, isOpen, onClose, 
        <>
         <div className="flex-1 overflow-y-auto pr-6 -mr-6 pl-1 -ml-1">
           <div className="grid gap-6 py-4">
-            <div className="grid gap-2">
-                <Label htmlFor="title">Título de la Tarea</Label>
-                <Input 
-                    id="title"
-                    value={task?.title || ''} 
-                    onChange={(e) => handleFieldChange('title', e.target.value)}
-                    className="text-lg font-semibold"
-                />
+             <div className="grid gap-2">
+              <Label htmlFor="title">Título de la Tarea</Label>
+              <Input
+                id="title"
+                value={task?.title || ''}
+                onChange={(e) => handleFieldChange('title', e.target.value)}
+                className="text-lg font-semibold"
+              />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="description">Descripción</Label>
@@ -519,33 +534,39 @@ export function TaskDetailsSheet({ task: initialTask, project, isOpen, onClose, 
                     <SelectValue placeholder="Seleccionar asignado..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectGroup>
-                       <SelectLabel>Equipos</SelectLabel>
-                        {associatedTeams.map((team) => (
-                           <SelectItem key={team.id} value={`team-${team.id}`}>
+                    {isLoadingTeams ? (
+                       <div className="p-2 text-center text-sm text-muted-foreground">Cargando equipos...</div>
+                    ): associatedTeams.length > 0 && (
+                        <SelectGroup>
+                           <SelectLabel>Equipos</SelectLabel>
+                            {associatedTeams.map((team) => (
+                               <SelectItem key={team.id} value={`team-${team.id}`}>
+                                    <div className="flex items-center gap-2">
+                                    <Avatar className="h-6 w-6">
+                                        <AvatarFallback><Users className="h-4 w-4"/></AvatarFallback>
+                                    </Avatar>
+                                    <span>{team.name}</span>
+                                    </div>
+                               </SelectItem>
+                            ))}
+                        </SelectGroup>
+                    )}
+                    {project.team.length > 0 && (
+                        <SelectGroup>
+                            <SelectLabel>Miembros</SelectLabel>
+                            {project.team.map((member) => (
+                            <SelectItem key={member.id} value={`user-${member.id}`}>
                                 <div className="flex items-center gap-2">
                                 <Avatar className="h-6 w-6">
-                                    <AvatarFallback><Users className="h-4 w-4"/></AvatarFallback>
+                                    <AvatarImage src={member.avatarUrl} />
+                                    <AvatarFallback>{member.initials}</AvatarFallback>
                                 </Avatar>
-                                <span>{team.name}</span>
+                                <span>{member.name}</span>
                                 </div>
-                           </SelectItem>
-                        ))}
-                    </SelectGroup>
-                    <SelectGroup>
-                        <SelectLabel>Miembros</SelectLabel>
-                        {project.team.map((member) => (
-                        <SelectItem key={member.id} value={`user-${member.id}`}>
-                            <div className="flex items-center gap-2">
-                            <Avatar className="h-6 w-6">
-                                <AvatarImage src={member.avatarUrl} />
-                                <AvatarFallback>{member.initials}</AvatarFallback>
-                            </Avatar>
-                            <span>{member.name}</span>
-                            </div>
-                        </SelectItem>
-                        ))}
-                    </SelectGroup>
+                            </SelectItem>
+                            ))}
+                        </SelectGroup>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -679,8 +700,8 @@ export function TaskDetailsSheet({ task: initialTask, project, isOpen, onClose, 
       <SheetContent className="w-full sm:max-w-xl md:max-w-2xl flex flex-col">
         <SheetHeader>
           <div className="flex justify-between items-start">
-            <div className="flex-1">
-                <SheetTitle className="text-2xl pr-10">{initialTask?.title}</SheetTitle>
+            <div className="flex-1 pr-10">
+                <SheetTitle className="text-2xl">{initialTask?.title}</SheetTitle>
                 <SheetDescription>
                     En el proyecto <span className="font-semibold text-primary">{project.name}</span>
                 </SheetDescription>

@@ -17,7 +17,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { PasswordKanban } from '@/components/auth/password-kanban';
+import { AuthKanban } from '@/components/auth/auth-kanban';
+import type { SignUpFormValues } from '@/lib/types';
 
 function GoogleIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -73,6 +74,7 @@ export default function SignupPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [focusedField, setFocusedField] = useState<keyof SignUpFormValues | null>(null);
 
   const form = useForm<z.infer<typeof signupSchema>>({
     resolver: zodResolver(signupSchema),
@@ -84,9 +86,10 @@ export default function SignupPage() {
       password: '',
       confirmPassword: '',
     },
+    mode: 'onTouched',
   });
 
-  const passwordValue = form.watch('password');
+  const formValues = form.watch();
 
   useEffect(() => {
     if (!authLoading && user) {
@@ -152,6 +155,8 @@ export default function SignupPage() {
                         placeholder="John Doe"
                         {...field}
                         disabled={isLoading}
+                        onFocus={() => setFocusedField('fullName')}
+                        onBlur={() => setFocusedField(null)}
                       />
                     </FormControl>
                     <FormMessage />
@@ -169,6 +174,8 @@ export default function SignupPage() {
                         placeholder="m@example.com"
                         {...field}
                         disabled={isLoading}
+                        onFocus={() => setFocusedField('email')}
+                        onBlur={() => setFocusedField(null)}
                       />
                     </FormControl>
                     <FormMessage />
@@ -183,7 +190,13 @@ export default function SignupPage() {
                     <FormItem>
                       <FormLabel>Empresa <span className="text-muted-foreground/80">(Opcional)</span></FormLabel>
                       <FormControl>
-                        <Input placeholder="Tu Empresa" {...field} disabled={isLoading} />
+                        <Input 
+                          placeholder="Tu Empresa"
+                          {...field}
+                          disabled={isLoading} 
+                          onFocus={() => setFocusedField('company')}
+                          onBlur={() => setFocusedField(null)}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -196,7 +209,13 @@ export default function SignupPage() {
                     <FormItem>
                       <FormLabel>Rol <span className="text-muted-foreground/80">(Opcional)</span></FormLabel>
                       <FormControl>
-                        <Input placeholder="p.ej., Freelancer" {...field} disabled={isLoading} />
+                        <Input
+                          placeholder="p.ej., Freelancer"
+                          {...field}
+                          disabled={isLoading}
+                          onFocus={() => setFocusedField('role')}
+                          onBlur={() => setFocusedField(null)}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -215,6 +234,8 @@ export default function SignupPage() {
                           type={showPassword ? "text" : "password"}
                           {...field}
                           disabled={isLoading}
+                          onFocus={() => setFocusedField('password')}
+                          onBlur={() => setFocusedField(null)}
                         />
                         <Button
                           type="button"
@@ -243,6 +264,8 @@ export default function SignupPage() {
                           type={showPassword ? "text" : "password"}
                           {...field}
                           disabled={isLoading}
+                          onFocus={() => setFocusedField('confirmPassword')}
+                          onBlur={() => setFocusedField(null)}
                         />
                          <Button
                           type="button"
@@ -293,10 +316,8 @@ export default function SignupPage() {
         </div>
       </div>
       <div className="hidden bg-muted lg:flex items-center justify-center p-8">
-        <PasswordKanban password={passwordValue} />
+        <AuthKanban focusedField={focusedField} formValues={formValues} />
       </div>
     </div>
   );
 }
-
-    

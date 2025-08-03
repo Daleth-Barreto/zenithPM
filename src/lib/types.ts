@@ -52,3 +52,9 @@ export interface SignInData {
 export interface SignUpData extends SignInData {
   fullName: string;
 }
+
+export interface SignUpFormValues extends SignUpData {
+    confirmPassword?: string;
+    company?: string;
+    role?: string;
+}

@@ -15,11 +15,12 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, PlusCircle } from 'lucide-react';
+import { Loader2, PlusCircle, Sparkles } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
-import { createProject } from '@/lib/firebase-services';
+import { createProject, createTask } from '@/lib/firebase-services';
 import { useToast } from '@/hooks/use-toast';
-import type { Project, TeamMember } from '@/lib/types';
+import type { Project } from '@/lib/types';
+import { breakdownProjectGoal } from '@/ai/flows/breakdown-project-goal';
 
 interface NewProjectDialogProps {
   onProjectCreated: (project: Project) => void;
@@ -30,8 +31,10 @@ export function NewProjectDialog({ onProjectCreated }: NewProjectDialogProps) {
   const { toast } = useToast();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [goal, setGoal] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState('');
 
   const handleSubmit = async () => {
     if (!user) {
@@ -53,6 +56,7 @@ export function NewProjectDialog({ onProjectCreated }: NewProjectDialogProps) {
     }
 
     setIsLoading(true);
+    setLoadingMessage('Creando proyecto...');
 
     try {
       const newProjectData = {
@@ -67,9 +71,38 @@ export function NewProjectDialog({ onProjectCreated }: NewProjectDialogProps) {
         description: `El proyecto "${name}" ha sido creado.`,
       });
 
+      if (goal.trim()) {
+        setLoadingMessage('Generando tareas con IA...');
+        try {
+            const result = await breakdownProjectGoal({ projectGoal: goal });
+            const taskPromises = result.tasks.map((task, index) => 
+                createTask(newProject.id, {
+                    title: task.title,
+                    description: task.description,
+                    status: 'backlog',
+                    priority: 'medium',
+                    order: index,
+                    subtasks: [],
+                })
+            );
+            await Promise.all(taskPromises);
+             toast({
+                title: '¡Tareas Generadas!',
+                description: 'La IA ha añadido tareas iniciales a tu proyecto.',
+            });
+        } catch (aiError) {
+             toast({
+                variant: 'destructive',
+                title: 'Error de IA',
+                description: 'No se pudieron generar las tareas con IA, pero el proyecto fue creado.',
+            });
+        }
+      }
+
       // Reset form and close dialog
       setName('');
       setDescription('');
+      setGoal('');
       setIsOpen(false);
     } catch (error) {
       console.error('Error creating project:', error);
@@ -80,6 +113,7 @@ export function NewProjectDialog({ onProjectCreated }: NewProjectDialogProps) {
       });
     } finally {
       setIsLoading(false);
+      setLoadingMessage('');
     }
   };
 
@@ -92,7 +126,7 @@ export function NewProjectDialog({ onProjectCreated }: NewProjectDialogProps) {
           Nuevo Proyecto
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Crear Nuevo Proyecto</DialogTitle>
           <DialogDescription>
@@ -100,35 +134,48 @@ export function NewProjectDialog({ onProjectCreated }: NewProjectDialogProps) {
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="name" className="text-right">
-              Nombre
+          <div className="space-y-2">
+            <Label htmlFor="name">
+              Nombre del Proyecto <span className="text-destructive">*</span>
             </Label>
             <Input
               id="name"
               placeholder="p.ej., QuantumLeap CRM"
-              className="col-span-3"
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
           </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="description" className="text-right">
-              Descripción
+          <div className="space-y-2">
+            <Label htmlFor="description">
+              Descripción Breve
             </Label>
             <Textarea
               id="description"
-              placeholder="Una breve descripción del proyecto."
-              className="col-span-3"
+              placeholder="Describe en una o dos frases de qué trata el proyecto."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
+              rows={2}
+            />
+          </div>
+           <div className="space-y-2">
+            <Label htmlFor="goal" className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-primary" />
+                <span>Opcional: Desglose con IA</span>
+            </Label>
+            <Textarea
+              id="goal"
+              placeholder="¿Cuál es el objetivo principal de este proyecto? La IA generará una lista de tareas inicial para empezar."
+              className="col-span-3"
+              value={goal}
+              onChange={(e) => setGoal(e.target.value)}
+              rows={3}
             />
           </div>
         </div>
         <DialogFooter>
           <Button onClick={handleSubmit} disabled={isLoading}>
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Crear Proyecto
+            {isLoading ? loadingMessage : 'Crear Proyecto'}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ProjectHeader } from '@/components/projects/project-header';
 import { getProjectById } from '@/lib/firebase-services';
 import { notFound, useParams } from 'next/navigation';

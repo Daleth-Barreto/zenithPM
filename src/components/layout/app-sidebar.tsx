@@ -18,6 +18,7 @@ import {
   SidebarMenuButton,
   SidebarMenuSub,
   SidebarMenuSubButton,
+  SidebarMenuSubItem,
   useSidebar
 } from '@/components/ui/sidebar';
 import { Logo } from '@/components/logo';

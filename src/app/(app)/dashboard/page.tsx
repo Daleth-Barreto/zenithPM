@@ -1,24 +1,57 @@
 
-import { FolderKanban, PlusCircle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+'use client';
+
+import { useEffect, useState } from 'react';
+import { FolderKanban } from 'lucide-react';
 import { ProjectCard } from '@/components/projects/project-card';
 import { NewProjectDialog } from '@/components/projects/new-project-dialog';
-import { mockProjects } from '@/lib/mock-data';
+import { getProjectsForUser } from '@/lib/firebase-services';
+import { useAuth } from '@/contexts/auth-context';
+import type { Project } from '@/lib/types';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function DashboardPage() {
-  const projects = mockProjects;
-  // const projects = []; // To test empty state
+  const { user } = useAuth();
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (user) {
+      const unsubscribe = getProjectsForUser(user.uid, (projects) => {
+        setProjects(projects);
+        setLoading(false);
+      });
+      return () => unsubscribe();
+    }
+  }, [user]);
+
+  const onProjectCreated = (newProject: Project) => {
+    setProjects(prevProjects => [...prevProjects, newProject]);
+  };
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div className="flex items-center justify-between space-y-2">
         <h2 className="text-3xl font-bold tracking-tight" data-tour="dashboard-title">Portafolio de Proyectos</h2>
         <div className="flex items-center space-x-2">
-          <NewProjectDialog />
+          <NewProjectDialog onProjectCreated={onProjectCreated} />
         </div>
       </div>
 
-      {projects.length > 0 ? (
+      {loading ? (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {[...Array(3)].map((_, i) => (
+             <div key={i} className="flex flex-col space-y-3">
+              <Skeleton className="h-[160px] w-full rounded-xl" />
+              <div className="space-y-2 p-6 pt-0">
+                <Skeleton className="h-6 w-3/4" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-1/2" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : projects.length > 0 ? (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {projects.map((project) => (
             <ProjectCard key={project.id} project={project} />
@@ -33,7 +66,7 @@ export default function DashboardPage() {
               Comienza creando tu primer proyecto.
             </p>
             <div className="mt-4">
-              <NewProjectDialog />
+              <NewProjectDialog onProjectCreated={onProjectCreated} />
             </div>
           </div>
         </div>

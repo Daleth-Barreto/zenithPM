@@ -24,14 +24,27 @@ import { Logo } from '@/components/logo';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { usePathname } from 'next/navigation';
-import { mockProjects } from '@/lib/mock-data';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../ui/collapsible';
 import { useAuth } from '@/contexts/auth-context';
 import { generateAvatar } from '@/lib/avatar';
+import { useEffect, useState } from 'react';
+import type { Project } from '@/lib/types';
+import { getProjectsForUser } from '@/lib/firebase-services';
 
 export function AppSidebar() {
   const pathname = usePathname();
   const { user } = useAuth();
+  const [projects, setProjects] = useState<Project[]>([]);
+
+  useEffect(() => {
+    if (user) {
+      const unsubscribe = getProjectsForUser(user.uid, (projects) => {
+        setProjects(projects);
+      });
+      return () => unsubscribe();
+    }
+  }, [user]);
+
   const isActive = (path: string) => pathname === path || pathname.startsWith(path + '/');
   
   const getInitials = (name: string | null | undefined) => {
@@ -80,17 +93,13 @@ export function AppSidebar() {
             </CollapsibleTrigger>
             <CollapsibleContent>
               <SidebarMenuSub>
-                {mockProjects.map((project) => (
+                {projects.map((project) => (
                   <SidebarMenuSubItem key={project.id}>
                     <SidebarMenuSubButton asChild isActive={isActive(`/projects/${project.id}`)}>
                       <Link href={`/projects/${project.id}/board`}>
                         <span
                           className="w-2 h-2 rounded-full"
-                          style={{
-                            backgroundColor: project.imageUrl.match(/(\w+)\/\w+$/)?.[1]
-                              ? `#${project.imageUrl.match(/(\w+)\/\w+$/)?.[1]}`
-                              : '#888',
-                          }}
+                           style={{ backgroundColor: project.color || '#888' }}
                         />
                         <span>{project.name}</span>
                       </Link>
@@ -124,7 +133,7 @@ export function AppSidebar() {
               <AvatarFallback>{getInitials(user.displayName)}</AvatarFallback>
             </Avatar>
             <div className="flex flex-col group-data-[collapsible=icon]:hidden">
-              <span className="font-semibold text-sm">{user.displayName}</span>
+              <span className="font-semibold text-sm">{user.displayName || 'Usuario'}</span>
               <span className="text-xs text-muted-foreground">{user.email}</span>
             </div>
           </div>

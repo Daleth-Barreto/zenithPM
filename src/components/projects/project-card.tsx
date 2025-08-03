@@ -21,7 +21,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
   return (
     <Card className="flex flex-col h-full overflow-hidden transition-transform transform hover:-translate-y-1 hover:shadow-xl">
       <CardHeader className="p-0">
-        <div className="relative h-40 w-full">
+        <div className="relative h-40 w-full" style={{ backgroundColor: project.color }}>
           <Image
             src={project.imageUrl}
             alt={project.name}

@@ -39,6 +39,7 @@ export interface Project {
   name: string;
   description: string;
   imageUrl: string;
+  color: string;
   progress: number;
   team: TeamMember[];
   tasks: Task[];

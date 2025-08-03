@@ -17,6 +17,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { AuthIllustration } from '@/components/auth/auth-illustration';
 
 function GoogleIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -108,89 +109,94 @@ export default function LoginPage() {
   const isLoading = isSubmitting || isGoogleLoading;
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader>
-          <div className="flex items-center justify-center mb-4">
-            <Logo className="h-10 w-10 text-primary" />
-          </div>
-          <CardTitle className="text-2xl text-center">Bienvenido de nuevo</CardTitle>
-          <CardDescription className="text-center">
-            Inicia sesión en tu cuenta de ZenithPM para continuar.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleLogin)} className="grid gap-4">
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Correo electrónico</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="m@example.com"
-                        {...field}
-                        disabled={isLoading}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                     <div className="flex items-center">
-                        <FormLabel>Contraseña</FormLabel>
-                        <Link href="#" className="ml-auto inline-block text-sm underline">
-                          ¿Olvidaste tu contraseña?
-                        </Link>
-                      </div>
-                    <FormControl>
-                      <Input 
-                        type="password"
-                        {...field} 
-                        disabled={isLoading}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Iniciar Sesión
-              </Button>
-            </form>
-          </Form>
-          <div className="relative my-4">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
+    <div className="w-full lg:grid lg:min-h-screen lg:grid-cols-2">
+       <div className="flex items-center justify-center py-12">
+        <Card className="w-full max-w-sm border-none shadow-none">
+          <CardHeader>
+            <div className="flex items-center justify-center mb-4">
+              <Logo className="h-10 w-10 text-primary" />
             </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-card px-2 text-muted-foreground">O continuar con</span>
+            <CardTitle className="text-2xl text-center">Bienvenido de nuevo</CardTitle>
+            <CardDescription className="text-center">
+              Inicia sesión en tu cuenta de ZenithPM para continuar.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(handleLogin)} className="grid gap-4">
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Correo electrónico</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="m@example.com"
+                          {...field}
+                          disabled={isLoading}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <div className="flex items-center">
+                          <FormLabel>Contraseña</FormLabel>
+                          <Link href="#" className="ml-auto inline-block text-sm underline">
+                            ¿Olvidaste tu contraseña?
+                          </Link>
+                        </div>
+                      <FormControl>
+                        <Input 
+                          type="password"
+                          {...field} 
+                          disabled={isLoading}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Iniciar Sesión
+                </Button>
+              </form>
+            </Form>
+            <div className="relative my-4">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">O continuar con</span>
+              </div>
             </div>
-          </div>
-          <Button variant="outline" className="w-full" onClick={handleGoogleLogin} disabled={isLoading}>
-            {isGoogleLoading ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <GoogleIcon className="mr-2 h-4 w-4" />
-            )}
-            Iniciar sesión con Google
-          </Button>
-          <div className="mt-4 text-center text-sm">
-            ¿No tienes una cuenta?{' '}
-            <Link href="/signup" className="underline">
-              Regístrate
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
+            <Button variant="outline" className="w-full" onClick={handleGoogleLogin} disabled={isLoading}>
+              {isGoogleLoading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <GoogleIcon className="mr-2 h-4 w-4" />
+              )}
+              Iniciar sesión con Google
+            </Button>
+            <div className="mt-4 text-center text-sm">
+              ¿No tienes una cuenta?{' '}
+              <Link href="/signup" className="underline">
+                Regístrate
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+       <div className="hidden bg-muted lg:flex items-center justify-center p-8">
+        <AuthIllustration />
+      </div>
     </div>
   );
 }

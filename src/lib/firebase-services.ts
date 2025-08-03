@@ -118,7 +118,7 @@ export async function getProjectById(projectId: string): Promise<Project | null>
             team: data.team,
             imageUrl: data.imageUrl,
             color: data.color,
-            tasks: [], // Tasks are now fetched in real-time inside the board
+            tasks: [],
         } as Project;
     } else {
         return null;
@@ -141,7 +141,7 @@ export function getTasksForProject(
       tasks.push({
         id: doc.id,
         ...data,
-        dueDate: data.dueDate?.toDate(), // Convert Firestore Timestamp to JS Date
+        dueDate: data.dueDate?.toDate(),
         subtasks: data.subtasks || [],
       } as Task);
     });
@@ -169,11 +169,9 @@ export async function updateTask(projectId: string, taskId:string, taskData: Par
     const dataToUpdate = { ...taskData };
 
     if (dataToUpdate.dueDate && !(dataToUpdate.dueDate instanceof Date)) {
-        // This case is unlikely with the current implementation but good for safety
         dataToUpdate.dueDate = (dataToUpdate.dueDate as any).toDate();
     }
     
-    // Ensure subtasks are plain objects for Firestore
     if (dataToUpdate.subtasks) {
         dataToUpdate.subtasks = dataToUpdate.subtasks.map(subtask => ({ ...subtask }));
     }
@@ -185,7 +183,7 @@ export async function createTask(projectId: string, taskData: Omit<Task, 'id' | 
     const tasksRef = collection(db, 'projects', projectId, 'tasks');
     const newDocRef = await addDoc(tasksRef, {
         ...taskData,
-        subtasks: [], // Initialize with empty subtasks
+        subtasks: [],
     });
     return newDocRef.id;
 }

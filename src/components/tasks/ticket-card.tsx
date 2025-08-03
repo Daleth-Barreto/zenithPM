@@ -9,8 +9,6 @@ import {
   ArrowDown,
   ArrowRight,
   ArrowUp,
-  MessageSquare,
-  Paperclip,
 } from 'lucide-react';
 
 interface TicketCardProps {

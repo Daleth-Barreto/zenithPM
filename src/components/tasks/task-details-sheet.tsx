@@ -6,7 +6,6 @@ import {
   SheetTitle,
   SheetDescription,
   SheetFooter,
-  SheetClose,
 } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -30,15 +29,17 @@ import {
   AlertCircle,
   Trash2,
   Loader2,
-  Plus
+  Plus,
+  Send,
+  MessageSquare,
 } from 'lucide-react';
-import type { Task, Project, TeamMember, TaskPriority, TaskStatus, Subtask, SubtaskStatus } from '@/lib/types';
+import type { Task, Project, TaskPriority, TaskStatus, Subtask, SubtaskStatus } from '@/lib/types';
 import { Calendar } from '../ui/calendar';
 import { Popover, PopoverTrigger, PopoverContent } from '../ui/popover';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { TaskAssigner } from '../ai/task-assigner';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { deleteTask, updateTask } from '@/lib/firebase-services';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -50,9 +51,9 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/auth-context';
 
 
 interface TaskDetailsSheetProps {
@@ -69,15 +70,30 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
   const [isDeleting, setIsDeleting] = useState(false);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
   const { toast } = useToast();
+  const { user } = useAuth();
+  const debouncedSaveRef = useRef<NodeJS.Timeout>();
 
   useEffect(() => {
     setCurrentTask(task);
   }, [task]);
+  
+  const handleDebouncedSave = (updatedTask: Task) => {
+    if (debouncedSaveRef.current) {
+      clearTimeout(debouncedSaveRef.current);
+    }
+    debouncedSaveRef.current = setTimeout(async () => {
+       const { id, ...taskData } = updatedTask;
+       await updateTask(project.id, id, taskData);
+    }, 1000); // Save after 1 second of inactivity
+  };
+
 
   if (!currentTask) return null;
 
   const handleFieldChange = (field: keyof Task, value: any) => {
-    setCurrentTask(prev => prev ? { ...prev, [field]: value } : null);
+    const updatedTask = { ...currentTask, [field]: value };
+    setCurrentTask(updatedTask);
+    handleDebouncedSave(updatedTask);
   }
 
   const handleAssigneeChange = (memberId: string) => {
@@ -103,15 +119,23 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
     handleFieldChange('subtasks', updatedSubtasks);
     setNewSubtaskTitle('');
   };
+  
+  const handleDeleteSubtask = (subtaskId: string) => {
+    const updatedSubtasks = currentTask.subtasks?.filter(st => st.id !== subtaskId);
+    handleFieldChange('subtasks', updatedSubtasks);
+  }
 
-  const handleSave = async () => {
+  const handleSaveAndClose = async () => {
     if (!currentTask) return;
+    if (debouncedSaveRef.current) {
+      clearTimeout(debouncedSaveRef.current);
+    }
     setIsSaving(true);
     try {
         const { id, ...taskData } = currentTask;
         await updateTask(project.id, id, taskData);
-        onUpdate(currentTask); // Optimistic update on parent
-        onClose(); // Close sheet on save
+        onUpdate(currentTask); 
+        onClose(); 
         toast({
             title: 'Tarea Actualizada',
             description: `Se han guardado los cambios para "${currentTask.title}".`
@@ -183,7 +207,7 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
                 <Label>Subtareas</Label>
                 <div className="space-y-2">
                     {currentTask.subtasks?.map(subtask => (
-                        <div key={subtask.id} className="flex items-center gap-3">
+                        <div key={subtask.id} className="flex items-center gap-3 group">
                         <Checkbox
                             id={`subtask-sheet-${subtask.id}`}
                             checked={subtask.status === 'completed'}
@@ -198,6 +222,9 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
                         >
                             {subtask.title}
                         </label>
+                        <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => handleDeleteSubtask(subtask.id)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
                         </div>
                     ))}
                 </div>
@@ -208,7 +235,7 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
                         onChange={(e) => setNewSubtaskTitle(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleAddSubtask()}
                     />
-                    <Button size="icon" onClick={handleAddSubtask}><Plus className="h-4 w-4"/></Button>
+                    <Button size="icon" onClick={handleAddSubtask} disabled={!newSubtaskTitle.trim()}><Plus className="h-4 w-4"/></Button>
                 </div>
             </div>
 
@@ -303,7 +330,6 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
                   <Users className="inline-block mr-2 h-4 w-4" />
                   Colaboradores
                 </Label>
-                {/* A multi-select component would be ideal here */}
                 <div className="flex flex-wrap gap-2">
                   {currentTask.collaborators?.map(c => (
                      <div key={c.id} className="flex items-center gap-2 bg-muted p-1 rounded-md">
@@ -320,8 +346,38 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
                 </div>
               </div>
             </div>
+            
             <Separator />
             <TaskAssigner task={currentTask} project={project} />
+            <Separator />
+            
+            <div className="space-y-4">
+              <Label>
+                <MessageSquare className="inline-block mr-2 h-4 w-4" />
+                Comentarios
+              </Label>
+              <div className="space-y-4">
+                {/* Placeholder for comments */}
+                <div className="flex gap-3">
+                  <Avatar>
+                    <AvatarFallback>U</AvatarFallback>
+                  </Avatar>
+                  <div className="p-3 rounded-lg bg-muted flex-1">
+                    <p className="text-sm">¡Este es un excelente comienzo! ¿Podemos añadir una subtarea para la revisión de diseño?</p>
+                    <p className="text-xs text-muted-foreground mt-1">Usuario - hace 2 horas</p>
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-2 items-center">
+                 <Avatar className="h-8 w-8">
+                    <AvatarImage src={user?.photoURL || undefined} />
+                    <AvatarFallback>{user?.displayName?.charAt(0) || 'U'}</AvatarFallback>
+                </Avatar>
+                <Input placeholder="Escribe un comentario..." />
+                <Button size="icon"><Send className="h-4 w-4" /></Button>
+              </div>
+            </div>
+
           </div>
         </div>
         <SheetFooter className="pt-4 border-t">
@@ -341,7 +397,9 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDelete}>Sí, eliminar tarea</AlertDialogAction>
+                <AlertDialogAction onClick={handleDelete} disabled={isDeleting}>
+                  {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Sí, eliminar tarea" }
+                </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
@@ -349,9 +407,9 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
           <Button variant="outline" onClick={onClose}>
             Cancelar
           </Button>
-          <Button onClick={handleSave} disabled={isSaving}>
+          <Button onClick={handleSaveAndClose} disabled={isSaving}>
             {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Guardar Cambios
+            Guardar y Cerrar
           </Button>
         </SheetFooter>
       </SheetContent>

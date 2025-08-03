@@ -14,6 +14,7 @@ import { TaskDetailsSheet } from './task-details-sheet';
 import { getTasksForProject, createTask, updateTaskStatus, updateTaskOrder } from '@/lib/firebase-services';
 import { Button } from '../ui/button';
 import { Plus } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 interface KanbanBoardProps {
   project: Project;
@@ -37,6 +38,7 @@ export function KanbanBoard({ project }: KanbanBoardProps) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [columns, setColumns] = useState(initialColumns);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     if (project.id) {
@@ -74,7 +76,10 @@ export function KanbanBoard({ project }: KanbanBoardProps) {
         subtasks: [],
     };
     await createTask(project.id, { ...newTaskData, order });
-    // Real-time listener will update the state
+    toast({
+      title: 'Tarea Creada',
+      description: `Se ha añadido una nueva tarea en la columna "${status}".`
+    })
   };
 
   const onDragEnd = (result: DropResult) => {
@@ -92,7 +97,6 @@ export function KanbanBoard({ project }: KanbanBoardProps) {
     const sourceItems = [...startCol.items];
     const [movedItem] = sourceItems.splice(source.index, 1);
     
-    // Moving within the same column
     if (sourceColId === destColId) {
         sourceItems.splice(destination.index, 0, movedItem);
         
@@ -105,13 +109,12 @@ export function KanbanBoard({ project }: KanbanBoardProps) {
         };
         setColumns(newColumns);
 
-        // Update order in Firebase
         sourceItems.forEach((task, index) => {
             if (task.order !== index) {
               updateTaskOrder(project.id, task.id, index);
             }
         });
-    } else { // Moving to a different column
+    } else { 
         const endItems = [...endCol.items];
         endItems.splice(destination.index, 0, movedItem);
 
@@ -128,17 +131,14 @@ export function KanbanBoard({ project }: KanbanBoardProps) {
         };
         setColumns(newColumns);
 
-        // Update status and order for the moved task
         updateTaskStatus(project.id, movedItem.id, destColId, destination.index);
 
-        // Update order for remaining items in source column
         sourceItems.forEach((task, index) => {
             if (task.order !== index) {
               updateTaskOrder(project.id, task.id, index);
             }
         });
         
-        // Update order for items in destination column
         endItems.forEach((task, index) => {
             if (task.order !== index && task.id !== movedItem.id) {
               updateTaskOrder(project.id, task.id, index);
@@ -196,9 +196,7 @@ export function KanbanBoard({ project }: KanbanBoardProps) {
         isOpen={!!selectedTask}
         onClose={() => setSelectedTask(null)}
         onUpdate={(updatedTask) => {
-            // Optimistically update the selected task for instant feedback
             setSelectedTask(updatedTask);
-            // The real-time listener will handle the main state update
         }}
       />
     </div>

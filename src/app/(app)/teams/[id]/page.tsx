@@ -55,12 +55,12 @@ export default function TeamManagementPage() {
   const canManageTeam = team?.members.find(m => m.id === user?.uid)?.role === 'Admin';
   
   const handleAddMember = async () => {
-    if (!inviteEmail || !team) return;
+    if (!inviteEmail || !team || !user) return;
     setIsInviting(true);
     try {
-        await addMemberToTeam(team.id, inviteEmail);
+        await addMemberToTeam(team.id, inviteEmail, user);
         setInviteEmail('');
-        toast({ title: 'Miembro Añadido', description: `Se ha invitado a ${inviteEmail} al equipo.` });
+        toast({ title: 'Invitación Enviada', description: `Se ha enviado una invitación a ${inviteEmail}.` });
     } catch (error) {
         console.error(error);
         toast({ variant: 'destructive', title: 'Error', description: (error as Error).message });

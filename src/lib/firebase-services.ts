@@ -17,9 +17,10 @@ import {
   arrayRemove,
   deleteDoc,
   orderBy,
+  runTransaction,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import type { Project, TeamMember, Task, TaskStatus, Comment, Team } from './types';
+import type { Project, TeamMember, Task, TaskStatus, Comment, Team, Invitation } from './types';
 import type { User } from 'firebase/auth';
 import { generateAvatar } from './avatar';
 
@@ -82,72 +83,64 @@ export function getProjectsForUser(
   callback: (projects: Project[]) => void
 ) {
   const projectsRef = collection(db, 'projects');
-  // First query: projects where the user is a direct member
-  const directMembershipQuery = query(projectsRef, where('teamIds', 'array-contains', userId));
-
-  // To query based on team membership, we first need to get the user's teams
+  
+  // Query for projects where user is a direct member
+  const q1 = query(projectsRef, where('teamIds', 'array-contains', userId));
+  
+  // Query for user's teams to then find projects associated with those teams
   const teamsRef = collection(db, 'teams');
   const userTeamsQuery = query(teamsRef, where('memberIds', 'array-contains', userId));
 
   let combinedProjects: Record<string, Project> = {};
+  let teamProjectUnsubscribes: (() => void)[] = [];
 
   const processAndCallback = () => {
-    callback(Object.values(combinedProjects));
+    callback(Object.values(combinedProjects).sort((a,b) => a.name.localeCompare(b.name)));
   };
 
-  const directUnsubscribe = onSnapshot(directMembershipQuery, (querySnapshot) => {
-    querySnapshot.forEach((doc) => {
+  const directUnsubscribe = onSnapshot(q1, (snapshot) => {
+    snapshot.docs.forEach(doc => {
       const data = doc.data();
       combinedProjects[doc.id] = {
-        id: doc.id,
-        name: data.name,
-        description: data.description,
-        progress: data.progress,
-        team: data.team,
-        teamIds: data.teamIds,
-        associatedTeamIds: data.associatedTeamIds || [],
-        imageUrl: data.imageUrl,
-        color: data.color,
-        tasks: [], // Loaded separately
-      };
+        id: doc.id, ...data, tasks: []
+      } as Project;
     });
     processAndCallback();
   });
-  
-  const teamsUnsubscribe = onSnapshot(userTeamsQuery, (teamsSnapshot) => {
-      const teamIds = teamsSnapshot.docs.map(doc => doc.id);
-      if (teamIds.length > 0) {
-          const teamMembershipQuery = query(projectsRef, where('associatedTeamIds', 'array-contains-any', teamIds));
-          const teamProjectsUnsubscribe = onSnapshot(teamMembershipQuery, (projectsSnapshot) => {
-               projectsSnapshot.forEach((doc) => {
-                const data = doc.data();
-                combinedProjects[doc.id] = {
-                  id: doc.id,
-                  name: data.name,
-                  description: data.description,
-                  progress: data.progress,
-                  team: data.team, // Note: This team is only direct members, might need merging logic
-                  teamIds: data.teamIds,
-                  associatedTeamIds: data.associatedTeamIds || [],
-                  imageUrl: data.imageUrl,
-                  color: data.color,
-                  tasks: [],
-                };
-              });
-              processAndCallback();
-          });
-          // This might need more complex unsubscribe logic
-      } else {
-        processAndCallback();
-      }
-  });
 
+  const teamsUnsubscribe = onSnapshot(userTeamsQuery, (teamsSnapshot) => {
+    // Clean up old team project listeners
+    teamProjectUnsubscribes.forEach(unsub => unsub());
+    teamProjectUnsubscribes = [];
+
+    const teamIds = teamsSnapshot.docs.map(doc => doc.id);
+
+    if (teamIds.length > 0) {
+      const q2 = query(projectsRef, where('associatedTeamIds', 'array-contains-any', teamIds));
+      const teamProjectsUnsubscribe = onSnapshot(q2, (snapshot) => {
+        snapshot.docs.forEach(doc => {
+          const data = doc.data();
+          if (!combinedProjects[doc.id]) { // Avoid duplicates
+             combinedProjects[doc.id] = {
+               id: doc.id, ...data, tasks: []
+             } as Project;
+          }
+        });
+        processAndCallback();
+      });
+      teamProjectUnsubscribes.push(teamProjectsUnsubscribe);
+    } else {
+        processAndCallback(); // Call even if user has no teams
+    }
+  });
 
   return () => {
     directUnsubscribe();
     teamsUnsubscribe();
+    teamProjectUnsubscribes.forEach(unsub => unsub());
   };
 }
+
 
 export function getProjectById(projectId: string, callback: (project: Project | null) => void) {
     const projectRef = doc(db, 'projects', projectId);
@@ -224,10 +217,8 @@ export async function updateTaskOrder(projectId: string, taskId: string, order: 
 export async function updateTask(projectId: string, taskId:string, taskData: Partial<Omit<Task, 'id'>>) {
     const taskRef = doc(db, 'projects', projectId, 'tasks', taskId);
 
-    // Create a copy to avoid modifying the original object
     const dataToUpdate = { ...taskData };
 
-    // Sanitize the data: convert undefined to null for Firestore compatibility
     for (const key in dataToUpdate) {
         if (dataToUpdate[key as keyof typeof dataToUpdate] === undefined) {
             delete dataToUpdate[key as keyof typeof dataToUpdate];
@@ -238,8 +229,6 @@ export async function updateTask(projectId: string, taskId:string, taskData: Par
       dataToUpdate.dueDate = null;
     }
 
-
-    // Subtasks are just arrays of objects, which is fine for Firestore
     if (dataToUpdate.subtasks) {
         dataToUpdate.subtasks = dataToUpdate.subtasks.map(subtask => ({ ...subtask }));
     }
@@ -274,52 +263,38 @@ export async function addCommentToTask(projectId: string, taskId: string, commen
     });
 }
 
-
 // --- TEAM MEMBERS (PROJECT) ---
-export async function inviteTeamMember(projectId: string, email: string): Promise<TeamMember> {
-  const usersRef = collection(db, "users");
-  const q = query(usersRef, where("email", "==", email));
-  const querySnapshot = await getDocs(q);
-
-  let member: TeamMember;
-
-  if (!querySnapshot.empty) {
-    const userDoc = querySnapshot.docs[0];
-    const userData = userDoc.data();
-    member = {
-      id: userDoc.id,
-      name: userData.displayName,
-      email: userData.email,
-      avatarUrl: userData.photoURL || generateAvatar(userData.displayName),
-      initials: (userData.displayName || 'U').charAt(0).toUpperCase(),
-      role: 'Miembro',
-      expertise: 'Sin definir',
-      currentWorkload: 0,
-    };
-  } else {
-    // If user doesn't exist, create a placeholder.
-    // In a real app, you might send an email invite.
-    member = {
-      id: new Date().getTime().toString(), // Mock ID
-      name: email.split('@')[0],
-      email: email,
-      avatarUrl: generateAvatar(email),
-      initials: email.charAt(0).toUpperCase(),
-      role: 'Miembro',
-      expertise: 'Sin definir',
-      currentWorkload: 0,
-    };
+export async function inviteTeamMember(projectId: string, project: Project, email: string, currentUser: User) {
+  // Check if user is already in the project
+  const isAlreadyMember = project.team.some(member => member.email === email);
+  if (isAlreadyMember) {
+    throw new Error('Este usuario ya es miembro del proyecto.');
   }
 
-  const projectRef = doc(db, 'projects', projectId);
-  await updateDoc(projectRef, {
-    team: arrayUnion(member),
-    teamIds: arrayUnion(member.id)
+  // Check for pending invitations
+  const invitationsRef = collection(db, 'invitations');
+  const q = query(invitationsRef, 
+    where('recipientEmail', '==', email), 
+    where('targetId', '==', projectId),
+    where('status', '==', 'pending')
+  );
+  const existingInvites = await getDocs(q);
+  if (!existingInvites.empty) {
+    throw new Error('Ya existe una invitación pendiente para este usuario en este proyecto.');
+  }
+
+  // Create new invitation
+  await addDoc(invitationsRef, {
+    type: 'project',
+    targetId: projectId,
+    targetName: project.name,
+    recipientEmail: email,
+    status: 'pending',
+    inviterId: currentUser.uid,
+    inviterName: currentUser.displayName,
+    createdAt: serverTimestamp(),
   });
-
-  return member;
 }
-
 
 export async function removeTeamMember(projectId: string, memberId: string) {
     const projectRef = doc(db, 'projects', projectId);
@@ -353,13 +328,6 @@ export async function updateTeamMemberRole(projectId: string, memberId: string, 
 
 // --- TEAMS ---
 
-// This is a simplified user lookup. In a real app, this would query a dedicated 'users' collection.
-async function findUserByEmail(email: string): Promise<TeamMember | null> {
-    // For now, we don't have a central user directory, so this is a placeholder.
-    // It simulates finding a user and creating a TeamMember object.
-    return null;
-}
-
 export async function createTeam(teamData: { name: string; memberEmails: string[] }, user: User): Promise<Team> {
   const owner: TeamMember = {
     id: user.uid,
@@ -372,44 +340,25 @@ export async function createTeam(teamData: { name: string; memberEmails: string[
     currentWorkload: 0,
   };
 
-  const members: TeamMember[] = [owner];
-  const memberIds: string[] = [owner.id];
-  
-  for (const email of teamData.memberEmails) {
-      if (email === user.email) continue; // Skip owner, already added
-
-      const existingUser = await findUserByEmail(email); // Placeholder lookup
-      const memberId = existingUser ? existingUser.id : new Date().getTime().toString() + email;
-      
-      if (!memberIds.includes(memberId)) {
-        members.push({
-          id: memberId,
-          name: existingUser ? existingUser.name : email.split('@')[0],
-          email: email,
-          avatarUrl: existingUser?.avatarUrl || generateAvatar(email),
-          initials: (existingUser?.name || email).charAt(0).toUpperCase(),
-          role: 'Miembro',
-          expertise: 'Sin definir',
-          currentWorkload: 0,
-        });
-        memberIds.push(memberId);
-      }
-  }
-
-  const newTeamRef = await addDoc(collection(db, 'teams'), {
+  const newTeamData = {
     name: teamData.name,
     ownerId: user.uid,
-    members: members.map(m => ({ ...m })), // Convert to plain objects for Firestore
-    memberIds: memberIds,
+    members: [owner],
+    memberIds: [owner.id],
     createdAt: serverTimestamp(),
-  });
+  };
+
+  const newTeamRef = await addDoc(collection(db, 'teams'), newTeamData);
+
+  // Send invitations to other members
+  for (const email of teamData.memberEmails) {
+    if (email === user.email) continue;
+    await addMemberToTeam(newTeamRef.id, email, user);
+  }
 
   return {
     id: newTeamRef.id,
-    name: teamData.name,
-    ownerId: user.uid,
-    members: members,
-    memberIds: memberIds,
+    ...newTeamData,
     createdAt: new Date(),
   };
 }
@@ -424,7 +373,7 @@ export function getTeamsForUser(userId: string, callback: (teams: Team[]) => voi
     querySnapshot.forEach((doc) => {
       teams.push({ id: doc.id, ...doc.data() } as Team);
     });
-    callback(teams);
+    callback(teams.sort((a,b) => a.name.localeCompare(b.name)));
   }, (error) => {
     console.error("Error fetching teams: ", error);
   });
@@ -458,24 +407,38 @@ export async function removeTeamFromProject(projectId: string, teamId: string) {
     });
 }
 
-export async function addMemberToTeam(teamId: string, email: string) {
-  const member: TeamMember = {
-      id: new Date().getTime().toString(),
-      name: email.split('@')[0],
-      email,
-      avatarUrl: generateAvatar(email),
-      initials: email.charAt(0).toUpperCase(),
-      role: 'Miembro',
-      expertise: 'Sin definir',
-      currentWorkload: 0,
-  };
-
+export async function addMemberToTeam(teamId: string, email: string, currentUser: User) {
   const teamRef = doc(db, 'teams', teamId);
-  await updateDoc(teamRef, {
-      members: arrayUnion(member),
-      memberIds: arrayUnion(member.id),
+  const teamSnap = await getDoc(teamRef);
+  if (!teamSnap.exists()) throw new Error("El equipo no existe.");
+  const teamData = teamSnap.data() as Team;
+
+  const isAlreadyMember = teamData.members.some(m => m.email === email);
+  if (isAlreadyMember) throw new Error("Este usuario ya es miembro del equipo.");
+
+  // Check for pending invitations
+  const invitationsRef = collection(db, 'invitations');
+  const q = query(invitationsRef, 
+    where('recipientEmail', '==', email), 
+    where('targetId', '==', teamId),
+    where('status', '==', 'pending')
+  );
+  const existingInvites = await getDocs(q);
+  if (!existingInvites.empty) {
+    throw new Error('Ya existe una invitación pendiente para este usuario en este equipo.');
+  }
+
+  // Create new invitation
+  await addDoc(invitationsRef, {
+    type: 'team',
+    targetId: teamId,
+    targetName: teamData.name,
+    recipientEmail: email,
+    status: 'pending',
+    inviterId: currentUser.uid,
+    inviterName: currentUser.displayName,
+    createdAt: serverTimestamp(),
   });
-  return member;
 }
 
 export async function removeMemberFromTeam(teamId: string, memberId: string) {
@@ -505,4 +468,60 @@ export async function updateTeamMemberRoleInTeam(teamId: string, memberId: strin
             members: updatedMembers,
         });
     }
+}
+
+
+// --- INVITATIONS ---
+
+export function getInvitationsForUser(email: string, callback: (invitations: Invitation[]) => void) {
+  const invitationsRef = collection(db, 'invitations');
+  const q = query(invitationsRef, where('recipientEmail', '==', email), where('status', '==', 'pending'));
+
+  const unsubscribe = onSnapshot(q, (snapshot) => {
+    const invitations: Invitation[] = [];
+    snapshot.forEach(doc => {
+      invitations.push({ id: doc.id, ...doc.data() } as Invitation);
+    });
+    callback(invitations);
+  });
+  return unsubscribe;
+}
+
+export async function respondToInvitation(invitationId: string, accepted: boolean, user: User) {
+  const invitationRef = doc(db, 'invitations', invitationId);
+
+  await runTransaction(db, async (transaction) => {
+    const invitationSnap = await transaction.get(invitationRef);
+    if (!invitationSnap.exists()) {
+      throw "Esta invitación ya no existe.";
+    }
+
+    const invitation = invitationSnap.data() as Invitation;
+    if (invitation.status !== 'pending') {
+      throw "Esta invitación ya ha sido respondida.";
+    }
+
+    if (accepted) {
+      const newMember: TeamMember = {
+        id: user.uid,
+        name: user.displayName || 'Usuario sin nombre',
+        email: user.email!,
+        avatarUrl: user.photoURL || generateAvatar(user.displayName || user.email!),
+        initials: (user.displayName || 'U').charAt(0).toUpperCase(),
+        role: 'Miembro',
+        expertise: 'Sin definir',
+        currentWorkload: 0,
+      };
+
+      const targetRef = doc(db, invitation.type === 'project' ? 'projects' : 'teams', invitation.targetId);
+      transaction.update(targetRef, {
+        members: arrayUnion(newMember),
+        memberIds: arrayUnion(user.uid),
+      });
+    }
+
+    transaction.update(invitationRef, {
+      status: accepted ? 'accepted' : 'declined'
+    });
+  });
 }

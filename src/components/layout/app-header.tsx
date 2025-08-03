@@ -11,6 +11,8 @@ import {
   PanelLeft,
   Users,
   Check,
+  Mail,
+  X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -27,34 +29,49 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/contexts/auth-context';
 import { useRouter } from 'next/navigation';
 import { generateAvatar } from '@/lib/avatar';
-
-const notifications = [
-    {
-      title: "Nueva tarea asignada",
-      description: "Se te ha asignado la tarea 'Diseñar el nuevo dashboard'.",
-      icon: <UserIcon className="h-4 w-4" />,
-    },
-    {
-      title: "Proyecto actualizado",
-      description: "El equipo 'Frontend' ha sido añadido al proyecto 'QuantumLeap CRM'.",
-      icon: <Users className="h-4 w-4" />,
-    },
-    {
-      title: "Tarea completada",
-      description: "Juan Pérez ha completado la tarea 'Implementar autenticación'.",
-      icon: <Check className="h-4 w-4" />,
-    },
-];
+import { useEffect, useState } from 'react';
+import type { Invitation } from '@/lib/types';
+import { getInvitationsForUser, respondToInvitation } from '@/lib/firebase-services';
+import { useToast } from '@/hooks/use-toast';
+import { Badge } from '../ui/badge';
 
 export function AppHeader() {
   const { user, signOut } = useAuth();
   const router = useRouter();
   const { toggleSidebar } = useSidebar();
+  const { toast } = useToast();
+
+  const [invitations, setInvitations] = useState<Invitation[]>([]);
+
+  useEffect(() => {
+    if (user?.email) {
+      const unsubscribe = getInvitationsForUser(user.email, setInvitations);
+      return () => unsubscribe();
+    }
+  }, [user]);
 
   const handleSignOut = async () => {
     await signOut();
     router.push('/login');
   };
+  
+  const handleInvitationResponse = async (invitationId: string, accept: boolean) => {
+    if (!user) return;
+    try {
+      await respondToInvitation(invitationId, accept, user);
+      toast({
+        title: accept ? 'Invitación Aceptada' : 'Invitación Rechazada',
+        description: accept ? 'Has sido añadido al nuevo equipo/proyecto.' : 'La invitación ha sido rechazada.',
+      });
+    } catch (error) {
+       toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: (error as Error).message,
+      });
+    }
+  };
+
 
   if (!user) {
     return null; // Or a loading spinner
@@ -93,23 +110,38 @@ export function AppHeader() {
       
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="rounded-full">
+          <Button variant="ghost" size="icon" className="rounded-full relative">
             <Bell className="h-5 w-5" />
+            {invitations.length > 0 && (
+              <Badge variant="destructive" className="absolute -top-1 -right-1 h-4 w-4 justify-center p-0">{invitations.length}</Badge>
+            )}
             <span className="sr-only">Alternar notificaciones</span>
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-80">
-            <DropdownMenuLabel>Notificaciones</DropdownMenuLabel>
+        <DropdownMenuContent align="end" className="w-96">
+            <DropdownMenuLabel>Invitaciones Pendientes</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            {notifications.map((notification, index) => (
-              <DropdownMenuItem key={index} className="flex gap-3 items-start">
-                 <div className="mt-1">{notification.icon}</div>
-                <div className="flex flex-col">
-                  <span className="font-semibold text-sm">{notification.title}</span>
-                  <span className="text-xs text-muted-foreground">{notification.description}</span>
-                </div>
+            {invitations.length > 0 ? (
+              invitations.map((invitation) => (
+              <DropdownMenuItem key={invitation.id} className="flex gap-3 items-center justify-between" onSelect={(e) => e.preventDefault()}>
+                 <div className="flex gap-3 items-start">
+                    <div className="mt-1 text-muted-foreground"><Mail className="h-4 w-4" /></div>
+                    <div className="flex flex-col">
+                      <span className="font-semibold text-sm leading-tight">Invitación para unirse a {invitation.targetName}</span>
+                      <span className="text-xs text-muted-foreground">De: {invitation.inviterName}</span>
+                    </div>
+                 </div>
+                 <div className="flex gap-2">
+                    <Button size="icon" variant="ghost" className="h-7 w-7 text-green-500 hover:text-green-500 hover:bg-green-500/10" onClick={() => handleInvitationResponse(invitation.id, true)}><Check /></Button>
+                    <Button size="icon" variant="ghost" className="h-7 w-7 text-red-500 hover:text-red-500 hover:bg-red-500/10" onClick={() => handleInvitationResponse(invitation.id, false)}><X /></Button>
+                 </div>
               </DropdownMenuItem>
-            ))}
+            ))
+            ) : (
+                <div className="text-center text-sm text-muted-foreground p-4">
+                    No tienes invitaciones pendientes.
+                </div>
+            )}
         </DropdownMenuContent>
       </DropdownMenu>
 

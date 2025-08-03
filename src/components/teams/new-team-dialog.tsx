@@ -66,13 +66,12 @@ export function NewTeamDialog({ onTeamCreated }: NewTeamDialogProps) {
     setIsLoading(true);
 
     try {
-      // Pass only name and emails. The service will handle creating member objects.
       const newTeam = await createTeam({ name, memberEmails }, user);
       onTeamCreated(newTeam);
 
       toast({
         title: '¡Éxito!',
-        description: `El equipo "${name}" ha sido creado.`,
+        description: `El equipo "${name}" ha sido creado y se han enviado las invitaciones.`,
       });
 
       // Reset form and close dialog

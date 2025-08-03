@@ -76,6 +76,18 @@ export interface Project {
   tasks: Task[];
 }
 
+export interface Invitation {
+  id: string;
+  type: 'project' | 'team';
+  targetId: string;
+  targetName: string;
+  recipientEmail: string;
+  status: 'pending' | 'accepted' | 'declined';
+  inviterName: string;
+  inviterId: string;
+  createdAt: any;
+}
+
 export interface SignInData {
   email: string;
   password?: string;

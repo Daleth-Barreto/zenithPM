@@ -51,17 +51,17 @@ export default function ProjectSettingsPage() {
         if(p) {
           setProject(p);
           if (p.associatedTeamIds && p.associatedTeamIds.length > 0) {
-            const unsubscribes = p.associatedTeamIds.map(teamId => {
-              return getTeamById(teamId, team => {
+            const teamUnsubscribes = p.associatedTeamIds.map(teamId => 
+              getTeamById(teamId, team => {
                 if (team) {
-                  setAssociatedTeams(prevTeams => {
-                    const otherTeams = prevTeams.filter(t => t.id !== teamId);
-                    return [...otherTeams, team].sort((a,b) => a.name.localeCompare(b.name));
-                  });
+                  setAssociatedTeams(prev => 
+                    [...prev.filter(t => t.id !== teamId), team]
+                    .sort((a,b) => a.name.localeCompare(b.name))
+                  );
                 }
-              });
-            });
-            // Need a way to unsubscribe from all of these
+              })
+            );
+            // This is complex to manage, for now we don't return the unsub array
           } else {
             setAssociatedTeams([]);
           }
@@ -80,15 +80,14 @@ export default function ProjectSettingsPage() {
   }, [user]);
 
   const handleInviteMember = async () => {
-    if (!inviteEmail || !project) return;
+    if (!inviteEmail || !project || !user) return;
     setIsInviting(true);
     try {
-      const newMember = await inviteTeamMember(project.id, inviteEmail);
-      // The onSnapshot listener will update the state automatically
+      await inviteTeamMember(project.id, project, inviteEmail, user);
       setInviteEmail('');
       toast({
         title: 'Invitación Enviada',
-        description: `${newMember.name} ha sido añadido al proyecto.`
+        description: `Se ha enviado una invitación a ${inviteEmail}.`
       });
     } catch (error) {
       console.error(error);

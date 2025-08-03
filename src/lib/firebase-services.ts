@@ -92,59 +92,57 @@ export function getProjectsForUser(
   callback: (projects: Project[]) => void
 ) {
   const projectsRef = collection(db, 'projects');
-  let projectsMap = new Map<string, Project>();
-  let directUnsubscribe: () => void;
-  let teamProjectsUnsubscribe: () => void | undefined = () => {};
+  const projectsMap = new Map<string, Project>();
 
   const updateCallback = () => {
-    callback(Array.from(projectsMap.values()).sort((a,b) => a.name.localeCompare(b.name)));
+    callback(Array.from(projectsMap.values()).sort((a, b) => a.name.localeCompare(b.name)));
   };
 
-  // Listener for projects where user is a direct member
+  // Listener for projects where the user is a direct member
   const directMembershipQuery = query(projectsRef, where('teamIds', 'array-contains', userId));
-  directUnsubscribe = onSnapshot(directMembershipQuery, (snapshot) => {
-    let changed = false;
+  const directUnsubscribe = onSnapshot(directMembershipQuery, (snapshot) => {
     snapshot.docs.forEach(doc => {
-      if (!projectsMap.has(doc.id)) {
-        projectsMap.set(doc.id, { id: doc.id, ...doc.data() } as Project);
-        changed = true;
-      }
+      projectsMap.set(doc.id, { id: doc.id, ...doc.data() } as Project);
     });
-    if (changed) updateCallback();
+    updateCallback();
   });
 
   // Listener for teams and their associated projects
   const teamsRef = collection(db, 'teams');
   const teamsQuery = query(teamsRef, where('memberIds', 'array-contains', userId));
-  const unsubscribeTeams = onSnapshot(teamsQuery, (teamsSnapshot) => {
+  
+  let teamProjectsUnsubscribe: (() => void) | null = null;
+
+  const teamsUnsubscribe = onSnapshot(teamsQuery, (teamsSnapshot) => {
     const userTeamIds = teamsSnapshot.docs.map(doc => doc.id);
-    
-    // Unsubscribe from previous team project listener if team list changes
+
+    // Unsubscribe from the previous listener if the user's teams change
     if (teamProjectsUnsubscribe) {
       teamProjectsUnsubscribe();
+      teamProjectsUnsubscribe = null;
     }
 
     if (userTeamIds.length > 0) {
       const teamMembershipQuery = query(projectsRef, where('associatedTeamIds', 'array-contains-any', userTeamIds));
       teamProjectsUnsubscribe = onSnapshot(teamMembershipQuery, (projectSnapshot) => {
-        let changed = false;
         projectSnapshot.docs.forEach(doc => {
-          if (!projectsMap.has(doc.id)) {
-            projectsMap.set(doc.id, { id: doc.id, ...doc.data() } as Project);
-            changed = true;
-          }
+          projectsMap.set(doc.id, { id: doc.id, ...doc.data() } as Project);
         });
-        if (changed) updateCallback();
+        updateCallback();
       });
     } else {
-        updateCallback(); // Update if user is no longer in any teams
+      // If user is not in any teams, just trigger the update with direct projects
+      updateCallback();
     }
   });
-  
+
+  // Return a function that unsubscribes from all listeners
   return () => {
     directUnsubscribe();
-    unsubscribeTeams();
-    if(teamProjectsUnsubscribe) teamProjectsUnsubscribe();
+    teamsUnsubscribe();
+    if (teamProjectsUnsubscribe) {
+      teamProjectsUnsubscribe();
+    }
   };
 }
 
@@ -201,53 +199,59 @@ export function getTasksForProject(
   return unsubscribe;
 }
 
-export async function getTasksForTeam(teamId: string, callback: (tasks: (Task & { projectName: string, projectId: string })[]) => void) {
-    // First, find all projects associated with this team
-    const projectsRef = collection(db, 'projects');
-    const projectsQuery = query(projectsRef, where('associatedTeamIds', 'array-contains', teamId));
-    
-    const unsubscribeProjects = onSnapshot(projectsQuery, (projectsSnapshot) => {
-        const projectIds = projectsSnapshot.docs.map(doc => ({id: doc.id, name: doc.data().name}));
-        let allTasks: (Task & { projectName: string, projectId: string })[] = [];
-        let unsubscribes: (()=>void)[] = [];
+export function getTasksForTeam(teamId: string, callback: (tasks: (Task & { projectName: string, projectId: string })[]) => void) {
+  let taskListeners: (() => void)[] = [];
+  let allTasks: (Task & { projectName: string, projectId: string })[] = [];
 
-        if (projectIds.length === 0) {
-            callback([]);
-            return;
-        }
+  const projectsRef = collection(db, 'projects');
+  const projectsQuery = query(projectsRef, where('associatedTeamIds', 'array-contains', teamId));
 
-        projectIds.forEach(project => {
-            const tasksRef = collection(db, 'projects', project.id, 'tasks');
-            const tasksQuery = query(tasksRef, where('assignedTeamId', '==', teamId));
-            
-            const unsubscribeTasks = onSnapshot(tasksQuery, (tasksSnapshot) => {
-                const projectTasks = tasksSnapshot.docs.map(doc => {
-                    const data = doc.data();
-                    return {
-                        id: doc.id,
-                        ...data,
-                        dueDate: data.dueDate?.toDate ? data.dueDate.toDate() : undefined,
-                        comments: (data.comments || []).map((comment: any) => ({
-                            ...comment,
-                            createdAt: comment.createdAt?.toDate ? comment.createdAt.toDate() : new Date(),
-                        })),
-                        projectName: project.name,
-                        projectId: project.id,
-                    } as Task & { projectName: string, projectId: string };
-                });
-                
-                // Update the full list
-                allTasks = allTasks.filter(t => t.projectId !== project.id).concat(projectTasks);
-                callback(allTasks.sort((a, b) => (a.projectName.localeCompare(b.projectName) || a.title.localeCompare(b.title))));
-            });
-            unsubscribes.push(unsubscribeTasks);
+  const projectsUnsubscribe = onSnapshot(projectsQuery, (projectsSnapshot) => {
+    // Clear previous task listeners
+    taskListeners.forEach(unsub => unsub());
+    taskListeners = [];
+    allTasks = [];
+
+    if (projectsSnapshot.empty) {
+      callback([]);
+      return;
+    }
+
+    projectsSnapshot.docs.forEach(projectDoc => {
+      const project = { id: projectDoc.id, name: projectDoc.data().name };
+      const tasksRef = collection(db, 'projects', project.id, 'tasks');
+      const tasksQuery = query(tasksRef, where('assignedTeamId', '==', teamId));
+
+      const tasksUnsubscribe = onSnapshot(tasksQuery, (tasksSnapshot) => {
+        const projectTasks = tasksSnapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            ...data,
+            dueDate: data.dueDate?.toDate ? data.dueDate.toDate() : undefined,
+            comments: (data.comments || []).map((comment: any) => ({
+              ...comment,
+              createdAt: comment.createdAt?.toDate ? comment.createdAt.toDate() : new Date(),
+            })),
+            projectName: project.name,
+            projectId: project.id,
+          } as Task & { projectName: string, projectId: string };
         });
 
-        // This function will be called when the parent listener is detached
-        return () => unsubscribes.forEach(unsub => unsub());
-    });
+        // Update the full list by replacing tasks for the current project
+        allTasks = allTasks.filter(t => t.projectId !== project.id).concat(projectTasks);
+        callback(allTasks.sort((a, b) => a.projectName.localeCompare(b.projectName) || a.title.localeCompare(b.title)));
+      });
 
-    return unsubscribeProjects;
+      taskListeners.push(tasksUnsubscribe);
+    });
+  });
+
+  // Return a cleanup function that unsubscribes from all listeners
+  return () => {
+    projectsUnsubscribe();
+    taskListeners.forEach(unsub => unsub());
+  };
 }
 
 

@@ -22,7 +22,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }, [user, loading, router]);
 
   useEffect(() => {
-    // Check if the tour has been completed
     const tourCompleted = localStorage.getItem('zenith_tour_completed');
     if (user && !tourCompleted) {
       setIsTourOpen(true);
@@ -33,7 +32,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     localStorage.setItem('zenith_tour_completed', 'true');
     setIsTourOpen(false);
   };
-
 
   if (loading || !user) {
     return (
@@ -47,7 +45,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     <SidebarProvider>
       <div className="flex h-screen bg-background text-foreground">
         <AppSidebar />
-        <div className="flex flex-1 flex-col overflow-hidden min-w-0">
+        <div className="flex flex-1 flex-col overflow-hidden">
           <AppHeader />
           <main className="flex-1 overflow-auto">{children}</main>
         </div>

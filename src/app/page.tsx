@@ -27,6 +27,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 
 function ProjectManagementIllustration(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -131,53 +133,99 @@ function ProjectManagementIllustration(props: React.SVGProps<SVGSVGElement>) {
   );
 }
 
-const pricingPlans = [
-    {
-        name: 'Freelancer',
-        price: '$0',
-        description: 'Ideal para individuos y freelancers que empiezan.',
-        features: [
-            'Hasta 3 proyectos',
-            'Colaboración básica',
-            '2GB de almacenamiento',
-            'Resúmenes con IA (limitado)',
-        ],
-        cta: 'Comienza Gratis',
-        isPopular: false,
-    },
-    {
-        name: 'Startup',
-        price: '$29',
-        priceDetail: '/mes',
-        description: 'Perfecto para equipos pequeños y startups en crecimiento.',
-        features: [
-            'Proyectos ilimitados',
-            'Roles y permisos de equipo',
-            '50GB de almacenamiento',
-            'Soporte prioritario',
-            'Resúmenes con IA avanzados',
-        ],
-        cta: 'Elige Startup',
-        isPopular: true,
-    },
-    {
-        name: 'Enterprise',
-        price: 'Contáctanos',
-        description: 'Soluciones a medida para grandes organizaciones.',
-        features: [
-            'Todo lo de Startup y más',
-            'Seguridad avanzada (SSO)',
-            'SLA y soporte dedicado',
-            'Analíticas e informes',
-            'Personalización de la marca',
-        ],
-        cta: 'Solicita una Demo',
-        isPopular: false,
-    },
-];
+const pricingPlans = {
+    monthly: [
+        {
+            name: 'Freelancer',
+            price: '$0',
+            description: 'Ideal para individuos y freelancers que empiezan.',
+            features: [
+                'Hasta 3 proyectos',
+                'Colaboración básica',
+                '2GB de almacenamiento',
+                'Resúmenes con IA (limitado)',
+            ],
+            cta: 'Comienza Gratis',
+            isPopular: false,
+        },
+        {
+            name: 'Startup',
+            price: '$29',
+            priceDetail: '/mes',
+            description: 'Perfecto para equipos pequeños y startups en crecimiento.',
+            features: [
+                'Proyectos ilimitados',
+                'Roles y permisos de equipo',
+                '50GB de almacenamiento',
+                'Soporte prioritario',
+                'Resúmenes con IA avanzados',
+            ],
+            cta: 'Elige Startup',
+            isPopular: true,
+        },
+        {
+            name: 'Enterprise',
+            price: 'Contáctanos',
+            description: 'Soluciones a medida para grandes organizaciones.',
+            features: [
+                'Todo lo de Startup y más',
+                'Seguridad avanzada (SSO)',
+                'SLA y soporte dedicado',
+                'Analíticas e informes',
+                'Personalización de la marca',
+            ],
+            cta: 'Solicita una Demo',
+            isPopular: false,
+        },
+    ],
+    annually: [
+        {
+            name: 'Freelancer',
+            price: '$0',
+            description: 'Ideal para individuos y freelancers que empiezan.',
+            features: [
+                'Hasta 3 proyectos',
+                'Colaboración básica',
+                '2GB de almacenamiento',
+                'Resúmenes con IA (limitado)',
+            ],
+            cta: 'Comienza Gratis',
+            isPopular: false,
+        },
+        {
+            name: 'Startup',
+            price: '$299',
+            priceDetail: '/año',
+            description: 'Perfecto para equipos pequeños y startups en crecimiento.',
+            features: [
+                'Proyectos ilimitados',
+                'Roles y permisos de equipo',
+                '50GB de almacenamiento',
+                'Soporte prioritario',
+                'Resúmenes con IA avanzados',
+            ],
+            cta: 'Elige Startup',
+            isPopular: true,
+        },
+        {
+            name: 'Enterprise',
+            price: 'Contáctanos',
+            description: 'Soluciones a medida para grandes organizaciones.',
+            features: [
+                'Todo lo de Startup y más',
+                'Seguridad avanzada (SSO)',
+                'SLA y soporte dedicado',
+                'Analíticas e informes',
+                'Personalización de la marca',
+            ],
+            cta: 'Solicita una Demo',
+            isPopular: false,
+        },
+    ]
+};
 
 export default function LandingPage() {
-  const [billingCycle, setBillingCycle] = useState('monthly');
+  const [billingCycle, setBillingCycle] = useState<'monthly' | 'annually'>('monthly');
   return (
     <>
       <div className="flex flex-col min-h-screen bg-background text-foreground font-body antialiased">
@@ -270,8 +318,20 @@ export default function LandingPage() {
                     </p>
                 </div>
 
+                <div className="flex items-center justify-center gap-4 mb-8">
+                    <Label htmlFor="billing-cycle" className={cn(billingCycle === 'monthly' ? 'text-foreground' : 'text-muted-foreground')}>Mensual</Label>
+                    <Switch
+                        id="billing-cycle"
+                        checked={billingCycle === 'annually'}
+                        onCheckedChange={(checked) => setBillingCycle(checked ? 'annually' : 'monthly')}
+                    />
+                    <Label htmlFor="billing-cycle" className={cn(billingCycle === 'annually' ? 'text-foreground' : 'text-muted-foreground')}>
+                        Anual <span className="text-primary font-semibold">(Ahorra ~15%)</span>
+                    </Label>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-                    {pricingPlans.map((plan) => (
+                    {pricingPlans[billingCycle].map((plan) => (
                         <Card
                             key={plan.name}
                             className={cn(

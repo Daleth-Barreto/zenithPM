@@ -656,16 +656,38 @@ export async function respondToInvitation(invitationId: string, accepted: boolea
   const invitationRef = doc(db, 'invitations', invitationId);
 
   await runTransaction(db, async (transaction) => {
+    // --- 1. READ PHASE ---
     const invitationSnap = await transaction.get(invitationRef);
-    if (!invitationSnap.exists()) {
-      throw new Error("Esta invitación ya no existe.");
+    if (!invitationSnap.exists() || invitationSnap.data().status !== 'pending') {
+      // If invitation is missing or already handled, we can stop.
+      // We throw an error to cancel the transaction.
+      throw new Error("Esta invitación ya no es válida.");
     }
 
     const invitation = invitationSnap.data() as Invitation;
-    if (invitation.status !== 'pending') {
-      throw new Error("Esta invitación ya ha sido respondida.");
+    let targetRef, projectRef;
+    
+    if (invitation.type === 'project') {
+      targetRef = doc(db, 'projects', invitation.targetId);
+    } else { // 'team'
+      if (!invitation.projectId) throw new Error("La invitación al equipo no tiene un proyecto asociado.");
+      targetRef = doc(db, 'projects', invitation.projectId, 'teams', invitation.targetId);
+      projectRef = doc(db, 'projects', invitation.projectId);
     }
 
+    // Read all other necessary documents
+    const targetSnap = await transaction.get(targetRef);
+    const projectSnap = projectRef ? await transaction.get(projectRef) : null;
+    
+    if (!targetSnap.exists()) {
+      throw new Error("El proyecto o equipo de destino ya no existe.");
+    }
+    if (projectRef && !projectSnap?.exists()) {
+        throw new Error("El proyecto asociado al equipo ya no existe.");
+    }
+
+
+    // --- 2. WRITE PHASE ---
     if (accepted) {
       const newMember: TeamMember = {
         id: user.uid,
@@ -677,55 +699,37 @@ export async function respondToInvitation(invitationId: string, accepted: boolea
         expertise: 'Sin definir',
         currentWorkload: 0,
       };
-      
-      let targetRef;
-      let memberIdField;
-      let membersField;
 
       if (invitation.type === 'project') {
-        targetRef = doc(db, 'projects', invitation.targetId);
-        memberIdField = 'teamIds';
-        membersField = 'team';
-      } else { // 'team'
-        if (!invitation.projectId) throw new Error("La invitación al equipo no tiene un proyecto asociado.");
-        targetRef = doc(db, 'projects', invitation.projectId, 'teams', invitation.targetId);
-        memberIdField = 'memberIds';
-        membersField = 'members';
-      }
-      
-      const targetSnap = await transaction.get(targetRef);
-
-      if (targetSnap.exists()) {
-        const targetData = targetSnap.data();
-
-        const memberIds = targetData[memberIdField] || [];
-        
-        if (!memberIds.includes(user.uid)) {
+        const projectData = targetSnap.data();
+        if (!projectData.teamIds?.includes(user.uid)) {
           transaction.update(targetRef, {
-            [membersField]: arrayUnion(newMember),
-            [memberIdField]: arrayUnion(user.uid),
+            team: arrayUnion(newMember),
+            teamIds: arrayUnion(user.uid),
           });
-
-           // If it's a team invite, also add the user to the main project team if they are not already there
-          if (invitation.type === 'team' && invitation.projectId) {
-            const projectRef = doc(db, 'projects', invitation.projectId);
-            const projectSnap = await transaction.get(projectRef);
-            if (projectSnap.exists()) {
-              const projectData = projectSnap.data();
-              if (!projectData.teamIds.includes(user.uid)) {
-                transaction.update(projectRef, {
-                  team: arrayUnion(newMember),
-                  teamIds: arrayUnion(user.uid),
-                });
-              }
-            }
-          }
         }
-      } else {
-        throw new Error("El proyecto o equipo de destino ya no existe.");
+      } else { // 'team'
+        // Add to the specific team
+        const teamData = targetSnap.data();
+        if (!teamData.memberIds?.includes(user.uid)) {
+          transaction.update(targetRef, {
+            members: arrayUnion(newMember),
+            memberIds: arrayUnion(user.uid),
+          });
+        }
+        
+        // Also add to the main project team if not already a member
+        const projectData = projectSnap!.data();
+        if (!projectData.teamIds?.includes(user.uid)) {
+          transaction.update(projectSnap!.ref, {
+            team: arrayUnion(newMember),
+            teamIds: arrayUnion(user.uid),
+          });
+        }
       }
     }
 
+    // Finally, update the invitation status
     transaction.update(invitationRef, {
       status: accepted ? 'accepted' : 'declined'
     });

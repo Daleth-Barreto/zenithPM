@@ -37,69 +37,70 @@ function ProjectManagementIllustration(props: React.SVGProps<SVGSVGElement>) {
               100% { transform: translateY(0px); }
             }
             @keyframes fadeIn {
-              from { opacity: 0; transform: translateY(10px); }
-              to { opacity: 1; transform: translateY(0px); }
+              from { opacity: 0; transform: scale(0.95) translateY(10px); }
+              to { opacity: 1; transform: scale(1) translateY(0px); }
             }
             .floating { animation: float 6s ease-in-out infinite; }
-            .fade-in { animation: fadeIn 0.5s ease-out forwards; }
+            .fade-in { animation: fadeIn 0.8s ease-out forwards; }
           `}
         </style>
       </defs>
 
-      <g transform="translate(400 200)">
+      {/* <!-- Background abstract shapes --> */}
+      <circle cx="150" cy="250" r="150" fill="hsl(var(--primary))" fillOpacity="0.05" />
+      <circle cx="650" cy="150" r="200" fill="hsl(var(--accent))" fillOpacity="0.05" />
+
+      {/* <!-- Central Flow Line --> */}
+      <path
+        d="M 100 200 C 250 100, 350 300, 500 200 S 650 100, 700 150"
+        stroke="hsl(var(--border))"
+        strokeWidth="2"
+        strokeDasharray="5, 5"
+        fill="none"
+        className="fade-in"
+        style={{ animationDelay: '0.2s' }}
+      />
+
+      {/* <!-- Floating Node 1: Idea/Task --> */}
+      <g className="floating fade-in" style={{ animationDelay: '0.4s' }}>
         <rect
-          x="-350"
-          y="-180"
-          width="320"
-          height="180"
-          rx="12"
+          x="80"
+          y="180"
+          width="100"
+          height="60"
+          rx="8"
           fill="hsl(var(--card))"
           stroke="hsl(var(--border))"
-          strokeWidth="2"
-          className="fade-in"
-          style={{ animationDelay: '0.1s' }}
+          strokeWidth="1.5"
         />
-        <text x="-330" y="-155" fontFamily="Inter, sans-serif" fontSize="16" fontWeight="bold" fill="hsl(var(--foreground))">
-          Tareas Pendientes
-        </text>
-        <rect x="-330" y="-135" width="280" height="30" rx="4" fill="hsl(var(--background))" />
-        <text x="-325" y="-115" fontFamily="Inter, sans-serif" fontSize="12" fill="hsl(var(--foreground))">Diseño de UI/UX</text>
-        <rect x="-330" y="-95" width="280" height="30" rx="4" fill="hsl(var(--background))" />
-        <text x="-325" y="-75" fontFamily="Inter, sans-serif" fontSize="12" fill="hsl(var(--foreground))">Desarrollo API</text>
+        <path d="M 100 210 L 115 210" stroke="hsl(var(--muted-foreground))" strokeWidth="2" />
+        <path d="M 100 220 L 140 220" stroke="hsl(var(--muted-foreground))" strokeWidth="2" />
+      </g>
+      
+      {/* <!-- Floating Node 2: In Progress --> */}
+      <g className="floating fade-in" style={{ animationDelay: '0.7s', animationDuration: '7s' }}>
+        <circle cx="300" cy="150" r="40" fill="hsl(var(--card))" stroke="hsl(var(--border))" strokeWidth="1.5" />
+        <circle cx="300" cy="150" r="30" fill="none" stroke="hsl(var(--primary))" strokeWidth="4" strokeDasharray="70 118" strokeLinecap="round" transform="rotate(-90 300 150)"/>
+      </g>
+      
+      {/* <!-- Floating Node 3: Collaboration --> */}
+      <g className="floating fade-in" style={{ animationDelay: '1s', animationDuration: '5s' }}>
+        <path d="M 480 230 L 520 270 L 480 270 Z" fill="hsl(var(--accent))" fillOpacity="0.2" />
+        <circle cx="500" cy="250" r="30" fill="hsl(var(--card))" stroke="hsl(var(--border))" strokeWidth="1.5" />
+        <circle cx="493" cy="245" r="5" fill="hsl(var(--accent))" />
+        <circle cx="507" cy="245" r="5" fill="hsl(var(--accent))" />
+        <path d="M 495 258 A 10 10 0 0 0 505 258" stroke="hsl(var(--accent))" strokeWidth="1.5" fill="none" />
+      </g>
 
-        <rect
-          x="30"
-          y="-150"
-          width="320"
-          height="280"
-          rx="12"
-          fill="hsl(var(--card))"
-          stroke="hsl(var(--border))"
-          strokeWidth="2"
-          className="fade-in"
-          style={{ animationDelay: '0.3s' }}
-        />
-        <text x="50" y="-125" fontFamily="Inter, sans-serif" fontSize="16" fontWeight="bold" fill="hsl(var(--foreground))">
-          Progreso del Equipo
-        </text>
-        <path d="M 60 100 C 120 -20, 200 150, 320 20" stroke="url(#grad1)" strokeWidth="4" fill="none" strokeLinecap="round" />
-        <circle cx="60" cy="100" r="6" fill="hsl(var(--primary))" className="floating" style={{ animationDelay: '0s' }} />
-        <circle cx="180" cy="50" r="6" fill="hsl(var(--accent))" className="floating" style={{ animationDelay: '1s' }} />
-        <circle cx="320" cy="20" r="6" fill="hsl(var(--primary))" className="floating" style={{ animationDelay: '2s' }} />
-
-        <g className="fade-in" style={{ animationDelay: '0.5s' }}>
-          <circle cx="-150" cy="100" r="30" fill="hsl(var(--primary))" className="floating" style={{ animationDelay: '0.5s' }} />
-          <text x="-162" y="105" fontFamily="Inter, sans-serif" fontSize="20" fill="hsl(var(--primary-foreground))">75%</text>
-        </g>
-
-        <g className="fade-in" style={{ animationDelay: '0.7s' }}>
-          <path d="M -50 50 L -20 80 L 10 50" fill="none" stroke="hsl(var(--accent))" strokeWidth="4" />
-          <circle cx="-20" cy="80" r="4" fill="hsl(var(--accent))" />
-        </g>
+      {/* <!-- Floating Node 4: Completion/Goal --> */}
+      <g className="floating fade-in" style={{ animationDelay: '1.3s', animationDuration: '8s' }}>
+        <path d="M 680 130 L 720 130 L 700 170 Z" fill="hsl(var(--primary))" fillOpacity="0.9" />
+        <path d="M 690 145 L 698 153 L 710 142" stroke="hsl(var(--primary-foreground))" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
       </g>
     </svg>
   );
 }
+
 
 export default function LandingPage() {
   return (

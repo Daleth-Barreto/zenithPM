@@ -14,12 +14,11 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, PlusCircle, Users, X, UserPlus } from 'lucide-react';
+import { Loader2, PlusCircle, X, UserPlus } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { createTeam } from '@/lib/firebase-services';
 import { useToast } from '@/hooks/use-toast';
-import type { Team, TeamMember } from '@/lib/types';
-import { generateAvatar } from '@/lib/avatar';
+import type { Team } from '@/lib/types';
 
 interface NewTeamDialogProps {
   onTeamCreated: (team: Team) => void;
@@ -29,30 +28,20 @@ export function NewTeamDialog({ onTeamCreated }: NewTeamDialogProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [name, setName] = useState('');
-  const [members, setMembers] = useState<TeamMember[]>([]);
-  const [memberEmail, setMemberEmail] = useState('');
+  const [memberEmails, setMemberEmails] = useState<string[]>([]);
+  const [currentEmail, setCurrentEmail] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleAddMember = () => {
-    if (memberEmail && !members.some(m => m.email === memberEmail)) {
-        const newMember: TeamMember = {
-            id: new Date().getTime().toString(), // temp ID
-            email: memberEmail,
-            name: memberEmail.split('@')[0],
-            role: 'Miembro',
-            avatarUrl: generateAvatar(memberEmail),
-            initials: memberEmail.charAt(0).toUpperCase(),
-            expertise: 'Sin definir',
-            currentWorkload: 0,
-        };
-        setMembers([...members, newMember]);
-        setMemberEmail('');
+    if (currentEmail && !memberEmails.includes(currentEmail)) {
+        setMemberEmails([...memberEmails, currentEmail]);
+        setCurrentEmail('');
     }
   };
 
-  const handleRemoveMember = (email: string) => {
-    setMembers(members.filter(m => m.email !== email));
+  const handleRemoveMember = (emailToRemove: string) => {
+    setMemberEmails(memberEmails.filter(email => email !== emailToRemove));
   };
 
   const handleSubmit = async () => {
@@ -77,8 +66,8 @@ export function NewTeamDialog({ onTeamCreated }: NewTeamDialogProps) {
     setIsLoading(true);
 
     try {
-      const newTeamData = { name, members };
-      const newTeam = await createTeam(newTeamData, user);
+      // Pass only name and emails. The service will handle creating member objects.
+      const newTeam = await createTeam({ name, memberEmails }, user);
       onTeamCreated(newTeam);
 
       toast({
@@ -88,7 +77,8 @@ export function NewTeamDialog({ onTeamCreated }: NewTeamDialogProps) {
 
       // Reset form and close dialog
       setName('');
-      setMembers([]);
+      setMemberEmails([]);
+      setCurrentEmail('');
       setIsOpen(false);
     } catch (error) {
       console.error('Error creating team:', error);
@@ -115,7 +105,7 @@ export function NewTeamDialog({ onTeamCreated }: NewTeamDialogProps) {
         <DialogHeader>
           <DialogTitle>Crear Nuevo Equipo</DialogTitle>
           <DialogDescription>
-            Dale un nombre a tu equipo e invita a los miembros.
+            Dale un nombre a tu equipo e invita a los miembros por correo electrónico.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
@@ -135,8 +125,8 @@ export function NewTeamDialog({ onTeamCreated }: NewTeamDialogProps) {
                     id="members"
                     type="email"
                     placeholder="miembro@example.com"
-                    value={memberEmail}
-                    onChange={(e) => setMemberEmail(e.target.value)}
+                    value={currentEmail}
+                    onChange={(e) => setCurrentEmail(e.target.value)}
                     onKeyDown={(e) => {
                         if (e.key === 'Enter') {
                             e.preventDefault();
@@ -144,15 +134,15 @@ export function NewTeamDialog({ onTeamCreated }: NewTeamDialogProps) {
                         }
                     }}
                 />
-                <Button type="button" variant="outline" onClick={handleAddMember} disabled={!memberEmail}>
+                <Button type="button" variant="outline" onClick={handleAddMember} disabled={!currentEmail}>
                     <UserPlus className="h-4 w-4" />
                 </Button>
             </div>
             <div className="space-y-2 pt-2">
-                {members.map(member => (
-                    <div key={member.email} className="flex items-center justify-between bg-muted p-2 rounded-md">
-                        <span className="text-sm font-medium">{member.email}</span>
-                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleRemoveMember(member.email)}>
+                {memberEmails.map(email => (
+                    <div key={email} className="flex items-center justify-between bg-muted p-2 rounded-md">
+                        <span className="text-sm font-medium">{email}</span>
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleRemoveMember(email)}>
                             <X className="h-4 w-4" />
                         </Button>
                     </div>

@@ -156,7 +156,6 @@ export function getTasksForProject(
         ...data,
         // Firestore timestamps need to be converted to JS Date objects
         dueDate: data.dueDate?.toDate ? data.dueDate.toDate() : undefined,
-        subtasks: data.subtasks || [],
         comments: (data.comments || []).map((comment: any) => ({
             ...comment,
             createdAt: comment.createdAt?.toDate ? comment.createdAt.toDate() : new Date(),
@@ -294,26 +293,55 @@ export async function updateTeamMemberRole(projectId: string, memberId: string, 
 
 // --- TEAMS ---
 
-export async function createTeam(teamData: { name: string, members: TeamMember[] }, user: User): Promise<Team> {
+// This is a simplified user lookup. In a real app, this would query a dedicated 'users' collection.
+async function findUserByEmail(email: string): Promise<User | null> {
+    // For now, we don't have a central user directory, so this will always return null.
+    // This is a placeholder for a more robust implementation.
+    return null; 
+}
+
+export async function createTeam(teamData: { name: string; memberEmails: string[] }, user: User): Promise<Team> {
   const owner: TeamMember = {
     id: user.uid,
     name: user.displayName || 'Usuario sin nombre',
-    email: user.email || '',
-    avatarUrl: user.photoURL || generateAvatar(user.displayName || user.email || 'U'),
+    email: user.email!,
+    avatarUrl: user.photoURL || generateAvatar(user.displayName || user.email!),
     initials: (user.displayName || 'U').charAt(0).toUpperCase(),
     role: 'Admin',
     expertise: 'Sin definir',
     currentWorkload: 0,
   };
 
-  // Ensure owner is in the members list
-  const finalMembers = [owner, ...teamData.members.filter(m => m.id !== owner.id)];
-  const memberIds = finalMembers.map(m => m.id);
+  const members: TeamMember[] = [owner];
+  const memberIds: string[] = [owner.id];
+  
+  for (const email of teamData.memberEmails) {
+      if (email === user.email) continue; // Skip owner, already added
+
+      // In a real app, you'd look up the user by email.
+      // For now, we'll create a placeholder member object.
+      const existingUser = await findUserByEmail(email);
+      const memberId = existingUser ? existingUser.id : new Date().getTime().toString() + email;
+      
+      if (!memberIds.includes(memberId)) {
+        members.push({
+          id: memberId,
+          name: existingUser ? existingUser.name : email.split('@')[0],
+          email: email,
+          avatarUrl: existingUser?.avatarUrl || generateAvatar(email),
+          initials: (existingUser?.name || email).charAt(0).toUpperCase(),
+          role: 'Miembro',
+          expertise: 'Sin definir',
+          currentWorkload: 0,
+        });
+        memberIds.push(memberId);
+      }
+  }
 
   const newTeamRef = await addDoc(collection(db, 'teams'), {
     name: teamData.name,
     ownerId: user.uid,
-    members: finalMembers,
+    members: members.map(m => ({ ...m })), // Convert to plain objects for Firestore
     memberIds: memberIds,
     createdAt: serverTimestamp(),
   });
@@ -322,11 +350,12 @@ export async function createTeam(teamData: { name: string, members: TeamMember[]
     id: newTeamRef.id,
     name: teamData.name,
     ownerId: user.uid,
-    members: finalMembers,
+    members: members,
     memberIds: memberIds,
     createdAt: new Date(),
   };
 }
+
 
 export function getTeamsForUser(userId: string, callback: (teams: Team[]) => void) {
   const teamsRef = collection(db, 'teams');
@@ -338,6 +367,8 @@ export function getTeamsForUser(userId: string, callback: (teams: Team[]) => voi
       teams.push({ id: doc.id, ...doc.data() } as Team);
     });
     callback(teams);
+  }, (error) => {
+    console.error("Error fetching teams: ", error);
   });
 
   return unsubscribe;

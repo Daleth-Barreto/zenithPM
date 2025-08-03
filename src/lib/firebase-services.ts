@@ -51,6 +51,9 @@ export async function createProject(
   };
 
   const projectColor = getRandomColor();
+  const patternWord = encodeURIComponent(projectData.name);
+  const imageUrl = `https://quantumpatternsapi.onrender.com/patterns/generate?width=600&height=400&pattern_type=word&word=${patternWord}`;
+
 
   const newProjectRef = await addDoc(collection(db, 'projects'), {
     ...projectData,
@@ -60,7 +63,7 @@ export async function createProject(
     progress: 0,
     team: [owner],
     color: projectColor,
-    imageUrl: `https://placehold.co/600x400/${projectColor.substring(1)}/FFFFFF`,
+    imageUrl: imageUrl,
   });
 
   return {
@@ -70,7 +73,7 @@ export async function createProject(
     tasks: [],
     team: [owner],
     color: projectColor,
-    imageUrl: `https://placehold.co/600x400/${projectColor.substring(1)}/FFFFFF`, 
+    imageUrl: imageUrl, 
   };
 }
 
@@ -183,6 +186,11 @@ export async function updateTask(projectId: string, taskId:string, taskData: Par
             delete dataToUpdate[key as keyof typeof dataToUpdate];
         }
     }
+    
+    if (dataToUpdate.dueDate === undefined) {
+      dataToUpdate.dueDate = null;
+    }
+
 
     // Subtasks are just arrays of objects, which is fine for Firestore
     if (dataToUpdate.subtasks) {

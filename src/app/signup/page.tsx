@@ -11,12 +11,13 @@ import { Logo } from '@/components/logo';
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
+import { Loader2, CheckCircle } from 'lucide-react';
 import { getFirebaseAuthErrorMessage } from '@/lib/firebase-errors';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { cn } from '@/lib/utils';
 
 
 function GoogleIcon(props: React.SVGProps<SVGSVGElement>) {
@@ -75,6 +76,16 @@ export default function SignupPage() {
     },
   });
 
+  const passwordValue = form.watch('password');
+
+  const passwordRequirements = [
+    { id: 'length', text: 'Al menos 8 caracteres', regex: /.{8,}/ },
+    { id: 'uppercase', text: 'Una letra mayúscula', regex: /[A-Z]/ },
+    { id: 'lowercase', text: 'Una letra minúscula', regex: /[a-z]/ },
+    { id: 'number', text: 'Un número', regex: /[0-9]/ },
+    { id: 'special', text: 'Un carácter especial', regex: /[^A-Za-z0-9]/ },
+  ];
+
   useEffect(() => {
     if (!authLoading && user) {
       router.push('/dashboard');
@@ -85,7 +96,6 @@ export default function SignupPage() {
     setIsSubmitting(true);
     try {
       await signUp(values.email, values.password, values.fullName);
-      // AuthProvider handles redirection
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -101,7 +111,6 @@ export default function SignupPage() {
     setIsGoogleLoading(true);
     try {
       await signInWithGoogle();
-      // AuthProvider handles redirection
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -181,6 +190,17 @@ export default function SignupPage() {
                   </FormItem>
                 )}
               />
+               <div className="grid gap-1 text-xs text-muted-foreground">
+                  {passwordRequirements.map(req => {
+                    const met = req.regex.test(passwordValue);
+                    return (
+                      <div key={req.id} className="flex items-center gap-2">
+                        <CheckCircle className={cn("h-4 w-4", met ? "text-green-500" : "text-muted-foreground/50")} />
+                        <span className={cn(met && "text-foreground")}>{req.text}</span>
+                      </div>
+                    );
+                  })}
+                </div>
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Crear una cuenta

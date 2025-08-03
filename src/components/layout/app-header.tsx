@@ -54,6 +54,10 @@ export function AppHeader() {
         <PanelLeft className="h-5 w-5" />
         <span className="sr-only">Toggle Sidebar</span>
       </Button>
+      <Button variant="ghost" size="icon" className="hidden md:flex" onClick={toggleSidebar}>
+        <PanelLeft className="h-5 w-5" />
+        <span className="sr-only">Toggle Sidebar</span>
+      </Button>
       <div className="w-full flex-1">
         <form>
           <div className="relative">

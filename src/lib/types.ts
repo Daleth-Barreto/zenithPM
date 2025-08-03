@@ -88,6 +88,16 @@ export interface Invitation {
   createdAt: any;
 }
 
+export interface Notification {
+    id: string;
+    userId: string; // The user who should receive the notification
+    message: string;
+    link: string; // A link to the relevant page (e.g., task details)
+    read: boolean;
+    createdAt: any; // Firestore Timestamp
+}
+
+
 export interface SignInData {
   email: string;
   password?: string;

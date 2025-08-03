@@ -149,11 +149,18 @@ export function TaskDetailsSheet({ task: initialTask, project, isOpen, onClose, 
   }
   
   const handleSubtaskStatusChange = (subtaskId: string, status: SubtaskStatus) => {
-    if (!isEditing || !task) return;
+    if (!task) return;
+
     const updatedSubtasks = task.subtasks?.map(st =>
       st.id === subtaskId ? { ...st, status } : st
     );
-    handleFieldChange('subtasks', updatedSubtasks);
+
+    if (isEditing) {
+        handleFieldChange('subtasks', updatedSubtasks);
+    } else {
+        // If in view mode, update directly
+        updateTask(project.id, task.id, { subtasks: updatedSubtasks });
+    }
   };
   
   const handleAddSubtask = () => {
@@ -177,18 +184,7 @@ export function TaskDetailsSheet({ task: initialTask, project, isOpen, onClose, 
   const handleAddComment = async () => {
     if (!newComment.trim() || !task || !user) return;
     
-    const commentData: Omit<Comment, 'id' | 'createdAt'> = {
-        text: newComment,
-        authorId: user.uid,
-        authorName: user.displayName || 'Usuario',
-        authorAvatarUrl: user.photoURL || undefined,
-    };
-    
-    if (commentData.authorAvatarUrl === undefined) {
-      delete commentData.authorAvatarUrl;
-    }
-
-    await addCommentToTask(project.id, task.id, commentData);
+    await addCommentToTask(project.id, task.id, newComment, user);
     setNewComment('');
   }
 
@@ -347,7 +343,7 @@ export function TaskDetailsSheet({ task: initialTask, project, isOpen, onClose, 
                                 <Checkbox
                                     id={`subtask-view-${subtask.id}`}
                                     checked={subtask.status === 'completed'}
-                                    disabled
+                                    onCheckedChange={(checked) => handleSubtaskStatusChange(subtask.id, checked ? 'completed' : 'pending')}
                                 />
                                 <label
                                     htmlFor={`subtask-view-${subtask.id}`}

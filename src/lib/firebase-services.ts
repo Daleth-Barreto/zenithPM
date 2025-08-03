@@ -21,7 +21,7 @@ import {
   limit,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import type { Project, TeamMember, Task, TaskStatus, Comment, Team, Invitation } from './types';
+import type { Project, TeamMember, Task, TaskStatus, Comment, Team, Invitation, Notification } from './types';
 import type { User } from 'firebase/auth';
 import { generateAvatar } from './avatar';
 
@@ -33,6 +33,17 @@ function getRandomColor() {
   }
   return color;
 }
+
+// --- NOTIFICATIONS ---
+export async function createNotification(notification: Omit<Notification, 'id' | 'createdAt' | 'read'>) {
+    const notificationsRef = collection(db, 'notifications');
+    await addDoc(notificationsRef, {
+        ...notification,
+        createdAt: serverTimestamp(),
+        read: false,
+    });
+}
+
 
 // --- USERS ---
 export async function checkUserExistsByEmail(email: string): Promise<boolean> {
@@ -283,6 +294,15 @@ export async function updateTask(projectId: string, taskId:string, taskData: Par
     if ('subtasks' in dataToUpdate && !dataToUpdate.subtasks) {
         dataToUpdate.subtasks = [];
     }
+    
+    // Firestore does not allow `undefined` values.
+    // We need to clean the object before sending it.
+    Object.keys(dataToUpdate).forEach(key => {
+        const typedKey = key as keyof typeof dataToUpdate;
+        if (dataToUpdate[typedKey] === undefined) {
+            delete dataToUpdate[typedKey];
+        }
+    });
 
     await updateDoc(taskRef, dataToUpdate);
 }
@@ -302,20 +322,37 @@ export async function deleteTask(projectId: string, taskId: string) {
     await deleteDoc(taskRef);
 }
 
-export async function addCommentToTask(projectId: string, taskId: string, comment: Omit<Comment, 'id' | 'createdAt'>) {
+export async function addCommentToTask(projectId: string, taskId: string, text: string, user: User) {
     const taskRef = doc(db, 'projects', projectId, 'tasks', taskId);
-    const newComment: any = {
-        ...comment,
-        id: doc(collection(db, 'dummy')).id, // Generate random ID
+
+    const commentData: Omit<Comment, 'id'> = {
+        text: text,
+        authorId: user.uid,
+        authorName: user.displayName || 'Usuario',
+        authorAvatarUrl: user.photoURL,
         createdAt: new Date(),
-    }
-    if (comment.authorAvatarUrl === undefined) {
-        delete newComment.authorAvatarUrl;
+    };
+    
+    // Generate a client-side ID for the comment
+    const newComment: Comment = {
+        ...commentData,
+        id: doc(collection(db, 'dummy')).id,
     }
 
     await updateDoc(taskRef, {
         comments: arrayUnion(newComment)
     });
+    
+    // Create notification for the assignee
+    const taskSnap = await getDoc(taskRef);
+    const taskData = taskSnap.data() as Task;
+    if (taskData.assignee && taskData.assignee.id !== user.uid) {
+        createNotification({
+            userId: taskData.assignee.id,
+            message: `${user.displayName} comentó en la tarea: "${taskData.title}"`,
+            link: `/projects/${projectId}/board`, // Or link directly to task
+        });
+    }
 }
 
 export async function updateCommentInTask(projectId: string, taskId: string, commentId: string, newText: string) {

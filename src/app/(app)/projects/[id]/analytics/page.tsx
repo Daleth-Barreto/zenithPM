@@ -10,6 +10,31 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { BarChart, PieChart, Bar, Pie, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 
+// Función para generar una paleta de colores a partir de un color base
+function generateColorPalette(baseColor: string, count: number): string[] {
+  const palette: string[] = [];
+  try {
+    const baseRgb = parseInt(baseColor.slice(1), 16);
+    let r = (baseRgb >> 16) & 255;
+    let g = (baseRgb >> 8) & 255;
+    let b = baseRgb & 255;
+
+    for (let i = 0; i < count; i++) {
+      const factor = 1 - (i * 0.15);
+      const newR = Math.min(255, Math.floor(r * factor));
+      const newG = Math.min(255, Math.floor(g * factor));
+      const newB = Math.min(255, Math.floor(b * factor));
+      palette.push(`rgb(${newR}, ${newG}, ${newB})`);
+    }
+  } catch(e) {
+    // Fallback en caso de color inválido
+    for (let i = 0; i < count; i++) {
+        palette.push(`hsl(var(--chart-${(i % 5) + 1}))`);
+    }
+  }
+  return palette;
+}
+
 export default function ProjectAnalyticsPage() {
   const project = useProject();
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -24,6 +49,11 @@ export default function ProjectAnalyticsPage() {
       return () => unsubscribe();
     }
   }, [project]);
+
+  const colorPalette = useMemo(() => {
+    if (!project?.color) return ['hsl(var(--primary))'];
+    return generateColorPalette(project.color, 5);
+  }, [project?.color]);
   
   const tasksByStatus = useMemo(() => {
     const counts = { backlog: 0, 'in-progress': 0, review: 0, done: 0 };
@@ -33,10 +63,10 @@ export default function ProjectAnalyticsPage() {
         }
     });
     return [
-      { name: 'Pendiente', value: counts.backlog, fill: 'var(--chart-1)' },
-      { name: 'En Progreso', value: counts['in-progress'], fill: 'var(--chart-2)' },
-      { name: 'En Revisión', value: counts.review, fill: 'var(--chart-3)' },
-      { name: 'Hecho', value: counts.done, fill: 'var(--chart-4)' },
+      { name: 'Pendiente', value: counts.backlog },
+      { name: 'En Progreso', value: counts['in-progress'] },
+      { name: 'En Revisión', value: counts.review },
+      { name: 'Hecho', value: counts.done },
     ];
   }, [tasks]);
   
@@ -44,7 +74,6 @@ export default function ProjectAnalyticsPage() {
     const counts: { [key: string]: number } = {};
     if (!project) return [];
     
-    // Initialize counts for all team members
     project.team.forEach(member => {
         counts[member.name] = 0;
     });
@@ -58,9 +87,9 @@ export default function ProjectAnalyticsPage() {
     return Object.entries(counts).map(([name, value], index) => ({
       name,
       value,
-      fill: `var(--chart-${(index % 5) + 1})`
+      fill: colorPalette[index % colorPalette.length]
     }));
-  }, [tasks, project]);
+  }, [tasks, project, colorPalette]);
 
   if (loading || !project) {
     return (
@@ -90,7 +119,11 @@ export default function ProjectAnalyticsPage() {
                                 content={<ChartTooltipContent />}
                                 cursor={{ fill: 'hsl(var(--muted))' }}
                             />
-                            <Bar dataKey="value" radius={[4, 4, 0, 0]} />
+                            <Bar dataKey="value" radius={[4, 4, 0, 0]} fill={project.color}>
+                                {tasksByStatus.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={colorPalette[index % colorPalette.length]} />
+                                ))}
+                            </Bar>
                         </BarChart>
                     </ResponsiveContainer>
                 </ChartContainer>

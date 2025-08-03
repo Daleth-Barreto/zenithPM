@@ -12,6 +12,7 @@ import React, { useState } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
+import { getFirebaseAuthErrorMessage } from '@/lib/firebase-errors';
 
 function GoogleIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -62,7 +63,7 @@ export default function SignupPage() {
       toast({
         variant: 'destructive',
         title: 'Error de registro',
-        description: error.message || 'Ocurrió un error. Por favor, inténtalo de nuevo.',
+        description: getFirebaseAuthErrorMessage(error.code),
       });
     } finally {
       setIsLoading(false);
@@ -78,7 +79,7 @@ export default function SignupPage() {
       toast({
         variant: 'destructive',
         title: 'Error con Google',
-        description: error.message || 'No se pudo iniciar sesión con Google.',
+        description: getFirebaseAuthErrorMessage(error.code),
       });
     } finally {
       setIsGoogleLoading(false);

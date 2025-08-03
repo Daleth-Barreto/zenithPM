@@ -11,9 +11,12 @@ import {
   BarChart,
   CheckCircle,
   TrendingUp,
+  MessageSquarePlus,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 
 function ProjectManagementIllustration(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -36,11 +39,17 @@ function ProjectManagementIllustration(props: React.SVGProps<SVGSVGElement>) {
               50% { transform: translateY(-10px); }
               100% { transform: translateY(0px); }
             }
+             @keyframes float-alt {
+              0% { transform: translateY(0px); }
+              50% { transform: translateY(8px); }
+              100% { transform: translateY(0px); }
+            }
             @keyframes fadeIn {
               from { opacity: 0; transform: scale(0.95) translateY(10px); }
               to { opacity: 1; transform: scale(1) translateY(0px); }
             }
             .floating { animation: float 6s ease-in-out infinite; }
+            .floating-alt { animation: float-alt 7s ease-in-out infinite; }
             .fade-in { animation: fadeIn 0.8s ease-out forwards; }
           `}
         </style>
@@ -73,8 +82,8 @@ function ProjectManagementIllustration(props: React.SVGProps<SVGSVGElement>) {
           stroke="hsl(var(--border))"
           strokeWidth="1.5"
         />
-        <path d="M 100 210 L 115 210" stroke="hsl(var(--muted-foreground))" strokeWidth="2" />
-        <path d="M 100 220 L 140 220" stroke="hsl(var(--muted-foreground))" strokeWidth="2" />
+        <path d="M 100 200 L 140 200" stroke="hsl(var(--muted-foreground))" strokeWidth="2" />
+        <path d="M 100 215 L 125 215" stroke="hsl(var(--muted-foreground))" strokeWidth="2" />
       </g>
       
       {/* <!-- Floating Node 2: In Progress --> */}
@@ -84,7 +93,7 @@ function ProjectManagementIllustration(props: React.SVGProps<SVGSVGElement>) {
       </g>
       
       {/* <!-- Floating Node 3: Collaboration --> */}
-      <g className="floating fade-in" style={{ animationDelay: '1s', animationDuration: '5s' }}>
+      <g className="floating-alt fade-in" style={{ animationDelay: '1s', animationDuration: '5s' }}>
         <path d="M 480 230 L 520 270 L 480 270 Z" fill="hsl(var(--accent))" fillOpacity="0.2" />
         <circle cx="500" cy="250" r="30" fill="hsl(var(--card))" stroke="hsl(var(--border))" strokeWidth="1.5" />
         <circle cx="493" cy="245" r="5" fill="hsl(var(--accent))" />
@@ -94,8 +103,19 @@ function ProjectManagementIllustration(props: React.SVGProps<SVGSVGElement>) {
 
       {/* <!-- Floating Node 4: Completion/Goal --> */}
       <g className="floating fade-in" style={{ animationDelay: '1.3s', animationDuration: '8s' }}>
-        <path d="M 680 130 L 720 130 L 700 170 Z" fill="hsl(var(--primary))" fillOpacity="0.9" />
-        <path d="M 690 145 L 698 153 L 710 142" stroke="hsl(var(--primary-foreground))" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+        <rect x="670" y="120" width="60" height="60" rx="8" fill="hsl(var(--card))" stroke="hsl(var(--primary))" strokeWidth="1.5" />
+        <path d="M 685 150 L 695 160 L 715 140" stroke="hsl(var(--primary))" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+      </g>
+      
+      {/* <!-- Additional floating elements --> */}
+      <g className="floating-alt fade-in" style={{ animationDelay: '1.6s', animationDuration: '9s' }}>
+         <circle cx="200" cy="80" r="15" fill="hsl(var(--accent))" fillOpacity="0.3" />
+      </g>
+      <g className="floating fade-in" style={{ animationDelay: '1.9s', animationDuration: '6s' }}>
+         <rect x="580" y="280" width="40" height="40" rx="4" fill="hsl(var(--card))" stroke="hsl(var(--border))" strokeWidth="1.5" transform="rotate(45 600 300)" />
+      </g>
+       <g className="floating-alt fade-in" style={{ animationDelay: '2.2s', animationDuration: '8s' }}>
+         <path d="M 380 320 L 420 320" stroke="hsl(var(--muted-foreground))" strokeWidth="2" strokeDasharray="2, 4" />
       </g>
     </svg>
   );
@@ -235,7 +255,7 @@ export default function LandingPage() {
                   <p className="mb-4">"ZenithPM ha revolucionado nuestra forma de trabajar. La claridad que nos da sobre nuestros proyectos es increíble. ¡Hemos aumentado nuestra eficiencia en un 30%!"</p>
                   <div className="flex items-center gap-4">
                     <Avatar>
-                      <AvatarImage src="https://placehold.co/100x100/408080/FFFFFF" />
+                      <AvatarImage src="https://placehold.co/100x100/408080/FFFFFF" data-ai-hint="woman smiling" />
                       <AvatarFallback>CJ</AvatarFallback>
                     </Avatar>
                     <div>
@@ -250,7 +270,7 @@ export default function LandingPage() {
                   <p className="mb-4">"La función de resúmenes con IA es mágica. Ahorramos horas cada semana en la redacción de actas de reuniones. Es una herramienta indispensable para nosotros."</p>
                    <div className="flex items-center gap-4">
                     <Avatar>
-                       <AvatarImage src="https://placehold.co/100x100/E94F37/FFFFFF" />
+                       <AvatarImage src="https://placehold.co/100x100/E94F37/FFFFFF" data-ai-hint="man portrait" />
                        <AvatarFallback>MR</AvatarFallback>
                     </Avatar>
                     <div>
@@ -260,6 +280,47 @@ export default function LandingPage() {
                   </div>
                 </CardContent>
               </Card>
+               <Card>
+                <CardContent className="p-6">
+                  <p className="mb-4">"Simple, potente y estéticamente agradable. ZenithPM es la primera herramienta de gestión que realmente disfruto usar a diario. El modo oscuro es perfecto."</p>
+                   <div className="flex items-center gap-4">
+                    <Avatar>
+                       <AvatarImage src="https://placehold.co/100x100/6A5ACD/FFFFFF" data-ai-hint="person tech" />
+                       <AvatarFallback>KV</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="font-semibold">Kavexa</p>
+                      <p className="text-sm text-muted-foreground">Desarrollador Full-Stack</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-6">
+                  <p className="mb-4">"Como freelance, mantener múltiples proyectos organizados era una pesadilla. ZenithPM me ha devuelto la cordura. ¡No podría vivir sin él!"</p>
+                   <div className="flex items-center gap-4">
+                    <Avatar>
+                       <AvatarImage data-ai-hint="abstract geometric" />
+                       <AvatarFallback>?</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="font-semibold">Usuario Anónimo</p>
+                      <p className="text-sm text-muted-foreground">Freelancer</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+            <div className="text-center mt-12">
+                <Card className="max-w-2xl mx-auto p-6 text-left">
+                  <h3 className="text-xl font-semibold mb-4 flex items-center"><MessageSquarePlus className="w-6 h-6 mr-2 text-primary" /> Deja tu propia reseña</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                    <Input placeholder="Tu nombre (opcional)" />
+                    <Input placeholder="Tu rol o empresa (opcional)" />
+                  </div>
+                  <Textarea placeholder="Escribe aquí tu experiencia con ZenithPM..." rows={4} className="mb-4" />
+                  <Button>Enviar Reseña</Button>
+                </Card>
             </div>
           </div>
         </section>

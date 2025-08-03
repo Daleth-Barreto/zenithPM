@@ -27,6 +27,7 @@ import { usePathname } from 'next/navigation';
 import { mockProjects } from '@/lib/mock-data';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../ui/collapsible';
 import { useAuth } from '@/contexts/auth-context';
+import { generateAvatar } from '@/lib/avatar';
 
 export function AppSidebar() {
   const pathname = usePathname();
@@ -41,6 +42,8 @@ export function AppSidebar() {
   if (!user) {
     return null; // Or a loading component
   }
+
+  const userAvatar = user.photoURL || generateAvatar(user.displayName || user.email || 'User');
 
   return (
     <Sidebar collapsible="icon" variant="sidebar">
@@ -117,7 +120,7 @@ export function AppSidebar() {
         <SidebarFooter className="p-4">
           <div className="flex items-center gap-3">
             <Avatar className="h-10 w-10">
-              <AvatarImage src={user.photoURL || undefined} />
+              <AvatarImage src={userAvatar} />
               <AvatarFallback>{getInitials(user.displayName)}</AvatarFallback>
             </Avatar>
             <div className="flex flex-col group-data-[collapsible=icon]:hidden">

@@ -1,19 +1,15 @@
 import type { User, TeamMember, Project, Task } from './types';
 
-export const mockUsers: User[] = [
-  { id: 'u1', name: 'Alicia Johnson', email: 'alicia@example.com', avatarUrl: 'https://placehold.co/100x100/408080/FFFFFF', initials: 'AJ' },
-  { id: 'u2', name: 'Roberto Williams', email: 'roberto@example.com', avatarUrl: 'https://placehold.co/100x100/40B080/FFFFFF', initials: 'RW' },
-  { id: 'u3', name: 'Carlos Brown', email: 'carlos@example.com', avatarUrl: 'https://placehold.co/100x100/F0B93E/FFFFFF', initials: 'CB' },
-  { id: 'u4', name: 'Diana Miller', email: 'diana@example.com', avatarUrl: 'https://placehold.co/100x100/E94F37/FFFFFF', initials: 'DM' },
-  { id: 'u5', name: 'Esteban Garcia', email: 'esteban@example.com', avatarUrl: 'https://placehold.co/100x100/2F3D4F/FFFFFF', initials: 'EG' },
+export const mockUsers: User[] = [];
+
+export const mockTeamMembers: TeamMember[] = [
+  { id: 'u1', name: 'Alicia Johnson', email: 'alicia@example.com', avatarUrl: 'https://placehold.co/100x100/408080/FFFFFF', initials: 'AJ', role: 'Admin', expertise: 'Frontend', currentWorkload: 60 },
+  { id: 'u2', name: 'Roberto Williams', email: 'roberto@example.com', avatarUrl: 'https://placehold.co/100x100/40B080/FFFFFF', initials: 'RW', role: 'Miembro', expertise: 'Backend', currentWorkload: 80 },
+  { id: 'u3', name: 'Carlos Brown', email: 'carlos@example.com', avatarUrl: 'https://placehold.co/100x100/F0B93E/FFFFFF', initials: 'CB', role: 'Miembro', expertise: 'UI/UX', currentWorkload: 40 },
+  { id: 'u4', name: 'Diana Miller', email: 'diana@example.com', avatarUrl: 'https://placehold.co/100x100/E94F37/FFFFFF', initials: 'DM', role: 'Miembro', expertise: 'DevOps', currentWorkload: 90 },
+  { id: 'u5', name: 'Esteban Garcia', email: 'esteban@example.com', avatarUrl: 'https://placehold.co/100x100/2F3D4F/FFFFFF', initials: 'EG', role: 'Miembro', expertise: 'QA', currentWorkload: 20 },
 ];
 
-export const mockTeamMembers: TeamMember[] = mockUsers.map((user, index) => ({
-  ...user,
-  role: index === 0 ? 'Admin' : 'Miembro',
-  expertise: ['Frontend', 'Backend', 'UI/UX', 'DevOps', 'QA'][index % 5],
-  currentWorkload: [60, 80, 40, 90, 20][index % 5],
-}));
 
 const generateTasks = (count: number): Task[] => {
   const tasks: Task[] = [];

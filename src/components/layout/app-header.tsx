@@ -23,6 +23,7 @@ import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/contexts/auth-context';
 import { useRouter } from 'next/navigation';
+import { generateAvatar } from '@/lib/avatar';
 
 export function AppHeader() {
   const { user, signOut } = useAuth();
@@ -41,6 +42,8 @@ export function AppHeader() {
     if (!name) return 'U';
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
   };
+
+  const userAvatar = user.photoURL || generateAvatar(user.displayName || user.email || 'User');
 
 
   return (
@@ -66,7 +69,7 @@ export function AppHeader() {
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="icon" className="rounded-full" data-tour="user-menu">
             <Avatar className="h-8 w-8">
-              <AvatarImage src={user.photoURL || undefined} alt={user.displayName || 'User'} />
+              <AvatarImage src={userAvatar} alt={user.displayName || 'User'} />
               <AvatarFallback>{getInitials(user.displayName)}</AvatarFallback>
             </Avatar>
             <span className="sr-only">Alternar menú de usuario</span>

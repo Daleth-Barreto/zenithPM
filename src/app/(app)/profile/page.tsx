@@ -1,12 +1,29 @@
+
+'use client';
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { mockUsers } from '@/lib/mock-data';
+import { useAuth } from '@/contexts/auth-context';
+import { generateAvatar } from '@/lib/avatar';
 
 export default function ProfilePage() {
-  const user = mockUsers[0];
+  const { user } = useAuth();
+
+  if (!user) {
+    return null;
+  }
+
+  const getInitials = (name: string | null | undefined) => {
+    if (!name) return 'U';
+    return name.split(' ').map(n => n[0]).join('').toUpperCase();
+  };
+
+  const userAvatar = user.photoURL || generateAvatar(user.displayName || user.email || 'User');
+  const userName = user.displayName || 'Usuario';
+  const userEmail = user.email || 'No hay correo electrónico';
 
   return (
     <div className="p-4 md:p-8">
@@ -18,8 +35,8 @@ export default function ProfilePage() {
         <CardContent className="space-y-6">
           <div className="flex items-center gap-4">
             <Avatar className="h-20 w-20">
-              <AvatarImage src={user.avatarUrl} />
-              <AvatarFallback className="text-2xl">{user.initials}</AvatarFallback>
+              <AvatarImage src={userAvatar} />
+              <AvatarFallback className="text-2xl">{getInitials(userName)}</AvatarFallback>
             </Avatar>
             <div className="flex-1">
               <Label htmlFor="avatar-upload">Foto de Perfil</Label>
@@ -29,11 +46,11 @@ export default function ProfilePage() {
           </div>
           <div className="space-y-2">
             <Label htmlFor="fullName">Nombre Completo</Label>
-            <Input id="fullName" defaultValue={user.name} />
+            <Input id="fullName" defaultValue={userName} />
           </div>
           <div className="space-y-2">
             <Label htmlFor="email">Correo Electrónico</Label>
-            <Input id="email" type="email" defaultValue={user.email} disabled />
+            <Input id="email" type="email" defaultValue={userEmail} disabled />
           </div>
           <div className="space-y-2">
             <Label htmlFor="currentPassword">Contraseña Actual</Label>

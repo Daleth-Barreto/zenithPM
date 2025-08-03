@@ -66,10 +66,10 @@ export async function createProject(
   const newProjectRef = await addDoc(collection(db, 'projects'), {
     ...projectData,
     ownerId: user.uid,
+    team: [owner],
     teamIds: [user.uid],
     createdAt: serverTimestamp(),
     progress: 0,
-    team: [owner],
     color: projectColor,
     imageUrl: imageUrl, 
     associatedTeamIds: [],
@@ -93,6 +93,8 @@ export function getProjectsForUser(
 ) {
   const projectsRef = collection(db, 'projects');
   let projectsMap = new Map<string, Project>();
+  let directUnsubscribe: () => void;
+  let teamProjectsUnsubscribe: () => void | undefined = () => {};
 
   const updateCallback = () => {
     callback(Array.from(projectsMap.values()).sort((a,b) => a.name.localeCompare(b.name)));
@@ -100,11 +102,15 @@ export function getProjectsForUser(
 
   // Listener for projects where user is a direct member
   const directMembershipQuery = query(projectsRef, where('teamIds', 'array-contains', userId));
-  const unsubscribeDirect = onSnapshot(directMembershipQuery, (snapshot) => {
+  directUnsubscribe = onSnapshot(directMembershipQuery, (snapshot) => {
+    let changed = false;
     snapshot.docs.forEach(doc => {
-      projectsMap.set(doc.id, { id: doc.id, ...doc.data() } as Project);
+      if (!projectsMap.has(doc.id)) {
+        projectsMap.set(doc.id, { id: doc.id, ...doc.data() } as Project);
+        changed = true;
+      }
     });
-    updateCallback();
+    if (changed) updateCallback();
   });
 
   // Listener for teams and their associated projects
@@ -113,25 +119,32 @@ export function getProjectsForUser(
   const unsubscribeTeams = onSnapshot(teamsQuery, (teamsSnapshot) => {
     const userTeamIds = teamsSnapshot.docs.map(doc => doc.id);
     
+    // Unsubscribe from previous team project listener if team list changes
+    if (teamProjectsUnsubscribe) {
+      teamProjectsUnsubscribe();
+    }
+
     if (userTeamIds.length > 0) {
       const teamMembershipQuery = query(projectsRef, where('associatedTeamIds', 'array-contains-any', userTeamIds));
-      const unsubscribeTeamProjects = onSnapshot(teamMembershipQuery, (projectSnapshot) => {
+      teamProjectsUnsubscribe = onSnapshot(teamMembershipQuery, (projectSnapshot) => {
+        let changed = false;
         projectSnapshot.docs.forEach(doc => {
-          projectsMap.set(doc.id, { id: doc.id, ...doc.data() } as Project);
+          if (!projectsMap.has(doc.id)) {
+            projectsMap.set(doc.id, { id: doc.id, ...doc.data() } as Project);
+            changed = true;
+          }
         });
-        updateCallback();
+        if (changed) updateCallback();
       });
-      // This will be unsubscribed with the main function
-      return () => unsubscribeTeamProjects();
+    } else {
+        updateCallback(); // Update if user is no longer in any teams
     }
-    // if user has no teams, still update with direct projects
-    updateCallback();
-    return () => {};
   });
   
   return () => {
-    unsubscribeDirect();
+    directUnsubscribe();
     unsubscribeTeams();
+    if(teamProjectsUnsubscribe) teamProjectsUnsubscribe();
   };
 }
 
@@ -188,6 +201,56 @@ export function getTasksForProject(
   return unsubscribe;
 }
 
+export async function getTasksForTeam(teamId: string, callback: (tasks: (Task & { projectName: string, projectId: string })[]) => void) {
+    // First, find all projects associated with this team
+    const projectsRef = collection(db, 'projects');
+    const projectsQuery = query(projectsRef, where('associatedTeamIds', 'array-contains', teamId));
+    
+    const unsubscribeProjects = onSnapshot(projectsQuery, (projectsSnapshot) => {
+        const projectIds = projectsSnapshot.docs.map(doc => ({id: doc.id, name: doc.data().name}));
+        let allTasks: (Task & { projectName: string, projectId: string })[] = [];
+        let unsubscribes: (()=>void)[] = [];
+
+        if (projectIds.length === 0) {
+            callback([]);
+            return;
+        }
+
+        projectIds.forEach(project => {
+            const tasksRef = collection(db, 'projects', project.id, 'tasks');
+            const tasksQuery = query(tasksRef, where('assignedTeamId', '==', teamId));
+            
+            const unsubscribeTasks = onSnapshot(tasksQuery, (tasksSnapshot) => {
+                const projectTasks = tasksSnapshot.docs.map(doc => {
+                    const data = doc.data();
+                    return {
+                        id: doc.id,
+                        ...data,
+                        dueDate: data.dueDate?.toDate ? data.dueDate.toDate() : undefined,
+                        comments: (data.comments || []).map((comment: any) => ({
+                            ...comment,
+                            createdAt: comment.createdAt?.toDate ? comment.createdAt.toDate() : new Date(),
+                        })),
+                        projectName: project.name,
+                        projectId: project.id,
+                    } as Task & { projectName: string, projectId: string };
+                });
+                
+                // Update the full list
+                allTasks = allTasks.filter(t => t.projectId !== project.id).concat(projectTasks);
+                callback(allTasks.sort((a, b) => (a.projectName.localeCompare(b.projectName) || a.title.localeCompare(b.title))));
+            });
+            unsubscribes.push(unsubscribeTasks);
+        });
+
+        // This function will be called when the parent listener is detached
+        return () => unsubscribes.forEach(unsub => unsub());
+    });
+
+    return unsubscribeProjects;
+}
+
+
 export async function updateTaskStatus(projectId: string, taskId: string, newStatus: TaskStatus, order: number) {
   const taskRef = doc(db, 'projects', projectId, 'tasks', taskId);
   await updateDoc(taskRef, { status: newStatus, order });
@@ -238,11 +301,15 @@ export async function deleteTask(projectId: string, taskId: string) {
 
 export async function addCommentToTask(projectId: string, taskId: string, comment: Omit<Comment, 'id' | 'createdAt'>) {
     const taskRef = doc(db, 'projects', projectId, 'tasks', taskId);
-    const newComment = {
+    const newComment: any = {
         ...comment,
         id: doc(collection(db, 'dummy')).id, // Generate random ID
         createdAt: serverTimestamp(),
     }
+    if (comment.authorAvatarUrl === undefined) {
+        delete newComment.authorAvatarUrl;
+    }
+
     await updateDoc(taskRef, {
         comments: arrayUnion(newComment)
     });
@@ -339,7 +406,7 @@ export async function createTeam(teamData: { name: string; memberEmails: string[
     name: teamData.name,
     ownerId: user.uid,
     members: [owner],
-    memberIds: [owner.id],
+    memberIds: [user.uid],
     createdAt: serverTimestamp(),
   };
 
@@ -557,5 +624,3 @@ export async function respondToInvitation(invitationId: string, accepted: boolea
     });
   });
 }
-
-    

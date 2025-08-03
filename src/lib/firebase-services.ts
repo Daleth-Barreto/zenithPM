@@ -92,21 +92,56 @@ export function getProjectsForUser(
   callback: (projects: Project[]) => void
 ) {
   const projectsRef = collection(db, 'projects');
+  const teamsRef = collection(db, 'teams');
   
-  const q1 = query(projectsRef, where('teamIds', 'array-contains', userId));
-  
-  let unsubscribe = onSnapshot(q1, (snapshot) => {
-    const projects: Project[] = [];
-    snapshot.forEach(doc => {
-      const data = doc.data();
-      projects.push({
-        id: doc.id, ...data, tasks: []
-      } as Project);
-    });
-    callback(projects.sort((a,b) => a.name.localeCompare(b.name)));
-  });
+  // First, get all teams the user is a part of
+  const teamsQuery = query(teamsRef, where('memberIds', 'array-contains', userId));
 
-  return unsubscribe;
+  return onSnapshot(teamsQuery, (teamsSnapshot) => {
+    const userTeamIds = teamsSnapshot.docs.map(doc => doc.id);
+    const allTeamIds = [...userTeamIds]; // Can be expanded later if needed
+    
+    const queries = [];
+    // Query for projects where user is a direct member
+    queries.push(query(projectsRef, where('teamIds', 'array-contains', userId)));
+
+    // Query for projects associated with any of the user's teams
+    if (allTeamIds.length > 0) {
+      queries.push(query(projectsRef, where('associatedTeamIds', 'array-contains-any', allTeamIds)));
+    }
+
+    // Since we can't do a compound OR query, we listen to both and merge the results
+    const projectsMap = new Map<string, Project>();
+    let remainingQueries = queries.length;
+    
+    if (queries.length === 0) {
+      callback([]);
+      return;
+    }
+
+    const unsubscribes = queries.map(q => {
+      return onSnapshot(q, (snapshot) => {
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          projectsMap.set(doc.id, { id: doc.id, ...data, tasks: [] } as Project);
+        });
+        
+        // This is a simple way to wait for both listeners to fire at least once
+        // A more robust solution might use Promise.all for initial fetch then subscribe
+        remainingQueries--;
+        if (remainingQueries <= 0) {
+            const allProjects = Array.from(projectsMap.values());
+            callback(allProjects.sort((a,b) => a.name.localeCompare(b.name)));
+        }
+      });
+    });
+
+    return () => unsubscribes.forEach(unsub => unsub());
+
+  }, (error) => {
+    console.error("Error fetching user teams: ", error);
+    callback([]);
+  });
 }
 
 
@@ -118,14 +153,7 @@ export function getProjectById(projectId: string, callback: (project: Project | 
             const data = projectSnap.data();
             callback({
                 id: projectSnap.id,
-                name: data.name,
-                description: data.description,
-                progress: data.progress,
-                team: data.team,
-                teamIds: data.teamIds,
-                associatedTeamIds: data.associatedTeamIds || [],
-                imageUrl: data.imageUrl,
-                color: data.color,
+                ...data,
                 tasks: [],
             } as Project);
         } else {
@@ -192,7 +220,7 @@ export async function updateTask(projectId: string, taskId:string, taskData: Par
         }
     }
     
-    if (dataToUpdate.dueDate === undefined) {
+    if ('dueDate' in dataToUpdate && dataToUpdate.dueDate === undefined) {
       dataToUpdate.dueDate = null;
     }
 
@@ -222,7 +250,7 @@ export async function addCommentToTask(projectId: string, taskId: string, commen
     const taskRef = doc(db, 'projects', projectId, 'tasks', taskId);
     const newComment = {
         ...comment,
-        id: new Date().getTime().toString(),
+        id: doc(collection(db, 'dummy')).id, // Generate random ID
         createdAt: serverTimestamp(),
     }
     await updateDoc(taskRef, {
@@ -323,16 +351,17 @@ export async function createTeam(teamData: { name: string; memberEmails: string[
 
   const newTeamRef = await addDoc(collection(db, 'teams'), newTeamData);
 
+  // Send invitations for the other members
   for (const email of teamData.memberEmails) {
-    if (email === user.email) continue;
+    if (email.toLowerCase() === user.email?.toLowerCase()) continue;
     await addMemberToTeam(newTeamRef.id, email, user);
   }
 
+  const newTeamDoc = await getDoc(newTeamRef);
   return {
-    id: newTeamRef.id,
-    ...newTeamData,
-    createdAt: new Date(),
-  };
+    id: newTeamDoc.id,
+    ...newTeamDoc.data()
+  } as Team;
 }
 
 
@@ -362,6 +391,18 @@ export async function getTeamById(teamId: string): Promise<Team | null> {
         return null;
     }
 }
+
+export function onTeamUpdate(teamId: string, callback: (team: Team | null) => void) {
+  const teamRef = doc(db, 'teams', teamId);
+  return onSnapshot(teamRef, (doc) => {
+    if (doc.exists()) {
+      callback({ id: doc.id, ...doc.data() } as Team);
+    } else {
+      callback(null);
+    }
+  });
+}
+
 
 export async function addTeamToProject(projectId: string, teamId: string) {
     const projectRef = doc(db, 'projects', projectId);
@@ -419,31 +460,32 @@ export async function addMemberToTeam(teamId: string, email: string, currentUser
 
 export async function removeMemberFromTeam(teamId: string, memberId: string) {
   const teamRef = doc(db, 'teams', teamId);
-  const teamSnap = await getDoc(teamRef);
-  if (teamSnap.exists()) {
+  await runTransaction(db, async (transaction) => {
+    const teamSnap = await transaction.get(teamRef);
+    if (teamSnap.exists()) {
       const teamData = teamSnap.data();
       const updatedMembers = teamData.members.filter((m: TeamMember) => m.id !== memberId);
       const updatedMemberIds = teamData.memberIds.filter((id: string) => id !== memberId);
-      await updateDoc(teamRef, {
+      transaction.update(teamRef, {
           members: updatedMembers,
           memberIds: updatedMemberIds,
       });
-  }
+    }
+  });
 }
 
 export async function updateTeamMemberRoleInTeam(teamId: string, memberId: string, role: 'Admin' | 'Miembro') {
     const teamRef = doc(db, 'teams', teamId);
-    const teamSnap = await getDoc(teamRef);
-    if (teamSnap.exists()) {
-        const teamData = teamSnap.data();
-        const updatedMembers = teamData.members.map((member: TeamMember) => 
-            member.id === memberId ? { ...member, role } : member
-        );
-        
-        await updateDoc(teamRef, {
-            members: updatedMembers,
-        });
-    }
+    await runTransaction(db, async (transaction) => {
+      const teamSnap = await transaction.get(teamRef);
+      if (teamSnap.exists()) {
+          const teamData = teamSnap.data();
+          const updatedMembers = teamData.members.map((member: TeamMember) => 
+              member.id === memberId ? { ...member, role } : member
+          );
+          transaction.update(teamRef, { members: updatedMembers });
+      }
+    });
 }
 
 
@@ -469,12 +511,12 @@ export async function respondToInvitation(invitationId: string, accepted: boolea
   await runTransaction(db, async (transaction) => {
     const invitationSnap = await transaction.get(invitationRef);
     if (!invitationSnap.exists()) {
-      throw "Esta invitación ya no existe.";
+      throw new Error("Esta invitación ya no existe.");
     }
 
     const invitation = invitationSnap.data() as Invitation;
     if (invitation.status !== 'pending') {
-      throw "Esta invitación ya ha sido respondida.";
+      throw new Error("Esta invitación ya ha sido respondida.");
     }
 
     if (accepted) {
@@ -490,14 +532,13 @@ export async function respondToInvitation(invitationId: string, accepted: boolea
       };
 
       const targetRef = doc(db, invitation.type === 'project' ? 'projects' : 'teams', invitation.targetId);
+      
       const targetSnap = await transaction.get(targetRef);
 
       if (targetSnap.exists()) {
         const targetData = targetSnap.data();
-        const members = targetData.members || [];
         const memberIds = targetData.memberIds || [];
         
-        // Ensure user is not already a member
         if (!memberIds.includes(user.uid)) {
           transaction.update(targetRef, {
             members: arrayUnion(newMember),

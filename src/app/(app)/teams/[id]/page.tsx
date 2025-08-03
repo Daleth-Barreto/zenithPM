@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { getTeamById, removeMemberFromTeam, addMemberToTeam, updateTeamMemberRoleInTeam } from '@/lib/firebase-services';
+import { onTeamUpdate, removeMemberFromTeam, addMemberToTeam, updateTeamMemberRoleInTeam } from '@/lib/firebase-services';
 import type { Team, TeamMember } from '@/lib/types';
 import { useAuth } from '@/contexts/auth-context';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -40,18 +40,18 @@ export default function TeamManagementPage() {
 
   useEffect(() => {
     if (teamId) {
-      const fetchTeam = async () => {
-        const t = await getTeamById(teamId);
+      const unsubscribe = onTeamUpdate(teamId, (t) => {
         if (t) {
           setTeam(t);
         } else {
-          router.push('/teams'); // Redirect if team not found
+          toast({ variant: 'destructive', title: 'Error', description: 'No se pudo encontrar el equipo.' });
+          router.push('/teams');
         }
         setLoading(false);
-      }
-      fetchTeam();
+      });
+      return () => unsubscribe();
     }
-  }, [teamId, router]);
+  }, [teamId, router, toast]);
   
   const canManageTeam = team?.members.find(m => m.id === user?.uid)?.role === 'Admin';
   

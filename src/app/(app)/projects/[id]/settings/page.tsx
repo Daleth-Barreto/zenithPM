@@ -152,7 +152,7 @@ export default function ProjectSettingsPage() {
         <CardContent className="space-y-4">
           <div className="space-y-4">
             {project.team.map(member => (
-              <div key={member.id} className="flex items-center justify-between">
+              <div key={member.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
                   <Avatar>
                     <AvatarImage src={member.avatarUrl} />
@@ -163,9 +163,9 @@ export default function ProjectSettingsPage() {
                     <p className="text-sm text-muted-foreground">{member.email}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 w-full sm:w-auto">
                   <Select defaultValue={member.role.toLowerCase()} disabled={!canManageTeam || member.id === user?.uid}>
-                    <SelectTrigger className="w-32">
+                    <SelectTrigger className="w-full sm:w-32">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -201,7 +201,7 @@ export default function ProjectSettingsPage() {
               <Separator />
               <div>
                 <h4 className="font-medium mb-2">Invitar Miembro</h4>
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <Input 
                     type="email" 
                     placeholder="nuevo.miembro@example.com" 
@@ -209,7 +209,7 @@ export default function ProjectSettingsPage() {
                     onChange={(e) => setInviteEmail(e.target.value)}
                     disabled={isInviting}
                   />
-                  <Button onClick={handleInviteMember} disabled={isInviting || !inviteEmail}>
+                  <Button onClick={handleInviteMember} disabled={isInviting || !inviteEmail} className="mt-2 sm:mt-0">
                     {isInviting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Enviar Invitación
                   </Button>

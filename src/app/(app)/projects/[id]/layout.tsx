@@ -52,9 +52,9 @@ export default function ProjectLayout({
                 <Skeleton className="h-5 w-3/4" />
             </div>
              <div className="px-4 md:px-8 border-b">
-                 <Skeleton className="h-10 w-96" />
+                 <Skeleton className="h-10 w-full md:w-96" />
             </div>
-             <div className="flex-1 p-8">
+             <div className="flex-1 p-4 md:p-8">
                  <Skeleton className="h-full w-full" />
             </div>
         </div>

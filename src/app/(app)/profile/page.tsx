@@ -33,12 +33,12 @@ export default function ProfilePage() {
           <CardDescription>Actualiza tu información personal y configuración.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="flex items-center gap-4">
+          <div className="flex flex-col sm:flex-row items-center gap-4">
             <Avatar className="h-20 w-20">
               <AvatarImage src={userAvatar} />
               <AvatarFallback className="text-2xl">{getInitials(userName)}</AvatarFallback>
             </Avatar>
-            <div className="flex-1">
+            <div className="flex-1 text-center sm:text-left">
               <p className="font-medium text-lg">{userName}</p>
               <p className="text-sm text-muted-foreground">Tu avatar se genera a partir de tu nombre.</p>
             </div>

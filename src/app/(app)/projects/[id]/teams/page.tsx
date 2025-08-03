@@ -70,7 +70,10 @@ export default function ProjectTeamsPage() {
     setIsInviting(true);
     try {
         const result = await addMemberToTeam(project.id, selectedTeam.id, inviteEmail, user);
-        if (result.success) {
+        
+        if (result.status === 'resent') {
+          toast({ title: 'Invitación Reenviada', description: `Se ha reenviado la invitación pendiente a ${inviteEmail}.` });
+        } else if(result.status === 'sent') {
           toast({ title: 'Invitación Enviada', description: `Se ha enviado una invitación a ${inviteEmail}.` });
         } else {
            toast({

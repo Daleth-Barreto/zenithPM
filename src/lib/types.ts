@@ -73,6 +73,7 @@ export interface Project {
   team: TeamMember[];
   teamIds: string[]; // User IDs
   tasks: Task[];
+  associatedTeamIds?: string[];
 }
 
 export interface Invitation {

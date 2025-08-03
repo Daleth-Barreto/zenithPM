@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -5,7 +6,7 @@ import {
   DragDropContext,
   Droppable,
   type DropResult,
-} from 'react-beautiful-dnd';
+} from '@hello-pangea/dnd';
 import { TicketCard } from './ticket-card';
 import type { Task, Project } from '@/lib/types';
 import { TaskDetailsSheet } from './task-details-sheet';

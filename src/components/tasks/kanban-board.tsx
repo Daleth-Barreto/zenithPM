@@ -87,11 +87,23 @@ export function KanbanBoard({ project }: KanbanBoardProps) {
         description: '',
         subtasks: [],
     };
-    await createTask(project.id, { ...newTaskData, order });
+    const newTaskId = await createTask(project.id, { ...newTaskData, order });
+    
+    // Find the newly created task to open its details
+    // We get the full list of tasks from the listener, so we need to find it there
+    // A better approach might be to have createTask return the full object.
+    // For now, let's create a temporary object to show.
+    const newTaskObject: Task = {
+        id: newTaskId,
+        ...newTaskData,
+        order,
+    };
+    setSelectedTask(newTaskObject);
+    
     toast({
       title: 'Tarea Creada',
-      description: `Se ha añadido una nueva tarea en la columna "${status}".`
-    })
+      description: `Se ha añadido una nueva tarea en la columna "${status}".`,
+    });
   };
 
   const onDragEnd = (result: DropResult) => {

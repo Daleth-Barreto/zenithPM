@@ -5,16 +5,9 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion';
 import {
   Plus,
   ArrowDown,
@@ -23,7 +16,6 @@ import {
   MessageSquare,
   Paperclip,
   Trash2,
-  Edit,
   Eye,
 } from 'lucide-react';
 import type { Task, Project, Subtask, SubtaskStatus } from '@/lib/types';
@@ -52,7 +44,6 @@ const statusColors: Record<Task['status'], string> = {
 
 export function TaskList({ project }: TaskListProps) {
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const { toast } = useToast();
 
@@ -74,38 +65,18 @@ export function TaskList({ project }: TaskListProps) {
       subtasks: [],
       order: tasks.length,
     };
-    await createTask(project.id, newTaskData);
+    const newTaskId = await createTask(project.id, newTaskData);
+    
+    const newTaskObject: Task = {
+      id: newTaskId,
+      ...newTaskData,
+    };
+    setSelectedTask(newTaskObject);
+    
     toast({
         title: 'Tarea Creada',
         description: 'Se ha añadido una nueva tarea a tu lista.'
-    })
-  };
-
-  const handleSubtaskStatusChange = (taskId: string, subtaskId: string, status: SubtaskStatus) => {
-    const task = tasks.find(t => t.id === taskId);
-    if (!task) return;
-
-    const updatedSubtasks = task.subtasks?.map(st => 
-      st.id === subtaskId ? { ...st, status } : st
-    ) || [];
-
-    updateTask(project.id, taskId, { subtasks: updatedSubtasks });
-  };
-  
-  const handleAddSubtask = (taskId: string, title: string) => {
-    if (!title.trim()) return;
-    
-    const task = tasks.find(t => t.id === taskId);
-    if (!task) return;
-
-    const newSubtask: Subtask = {
-      id: new Date().getTime().toString(), // Simple unique ID
-      title: title,
-      status: 'pending',
-    };
-
-    const updatedSubtasks = [...(task.subtasks || []), newSubtask];
-    updateTask(project.id, taskId, { subtasks: updatedSubtasks });
+    });
   };
   
   const handleDeleteTask = async (taskId: string) => {

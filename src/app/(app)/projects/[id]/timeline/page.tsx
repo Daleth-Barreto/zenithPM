@@ -7,11 +7,10 @@ import { useEffect, useState, useMemo } from 'react';
 import type { Task } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
-import { format, differenceInDays, addDays } from 'date-fns';
+import { format, differenceInDays, addDays, startOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
+import React from 'react';
 
 export default function ProjectTimelinePage() {
   const project = useProject();
@@ -29,17 +28,28 @@ export default function ProjectTimelinePage() {
   }, [project]);
   
   const { tasksWithDates, timelineStart, timelineEnd, totalDays } = useMemo(() => {
-    const tasksWithDates = tasks.filter(task => task.startDate && task.dueDate);
+    // Filter tasks that have at least a due date.
+    const tasksWithDates = tasks.filter(task => task.dueDate);
     if (tasksWithDates.length === 0) {
         return { tasksWithDates: [], timelineStart: new Date(), timelineEnd: addDays(new Date(), 30), totalDays: 30 };
     }
 
-    const allDates = tasksWithDates.flatMap(t => [new Date(t.startDate!), new Date(t.dueDate!)]);
-    const timelineStart = new Date(Math.min(...allDates.map(d => d.getTime())));
-    const timelineEnd = new Date(Math.max(...allDates.map(d => d.getTime())));
-    const totalDays = differenceInDays(timelineEnd, timelineStart) + 1;
+    // A task's start date is either its 'startDate' or its 'dueDate' if 'startDate' is missing.
+    const allDates = tasksWithDates.flatMap(t => [
+        new Date(t.startDate || t.dueDate!),
+        new Date(t.dueDate!)
+    ]);
 
-    return { tasksWithDates, timelineStart, timelineEnd, totalDays };
+    const timelineStart = startOfDay(new Date(Math.min(...allDates.map(d => d.getTime()))));
+    const timelineEnd = startOfDay(new Date(Math.max(...allDates.map(d => d.getTime()))));
+    
+    // Add some padding to the timeline
+    const paddedStart = addDays(timelineStart, -2);
+    const paddedEnd = addDays(timelineEnd, 2);
+
+    const totalDays = differenceInDays(paddedEnd, paddedStart) + 1;
+
+    return { tasksWithDates, timelineStart: paddedStart, timelineEnd: paddedEnd, totalDays };
 
   }, [tasks]);
 
@@ -53,12 +63,15 @@ export default function ProjectTimelinePage() {
   }
   
   const getBarStyles = (task: Task) => {
-    if (!task.startDate || !task.dueDate) return { gridColumn: '1 / span 1' };
+    // A task must have a due date to be rendered
+    if (!task.dueDate) return { gridColumn: '1 / span 1', display: 'none' };
     
-    const start = new Date(task.startDate);
-    const end = new Date(task.dueDate);
+    // Default to a 1-day event if no start date
+    const start = startOfDay(new Date(task.startDate || task.dueDate));
+    const end = startOfDay(new Date(task.dueDate));
 
     const startOffset = differenceInDays(start, timelineStart);
+    // Duration must be at least 1 day
     const duration = differenceInDays(end, start) + 1;
 
     return {
@@ -76,7 +89,7 @@ export default function ProjectTimelinePage() {
         <CardContent>
             {tasksWithDates.length > 0 ? (
                 <div className="overflow-x-auto">
-                    <div className="grid gap-y-2" style={{ gridTemplateColumns: `minmax(250px, 1fr) repeat(${totalDays}, minmax(40px, 1fr))`}}>
+                    <div className="grid gap-y-2" style={{ gridTemplateColumns: `minmax(250px, 1fr) repeat(${totalDays > 0 ? totalDays : 1}, minmax(40px, 1fr))`}}>
                         {/* Header */}
                         <div className="sticky left-0 bg-background z-10 font-semibold p-2 border-b">Tarea</div>
                         {Array.from({ length: totalDays }).map((_, i) => (
@@ -108,8 +121,8 @@ export default function ProjectTimelinePage() {
                 </div>
             ) : (
                 <div className="text-center py-16">
-                    <p className="text-muted-foreground">No hay tareas con fechas de inicio y fin para mostrar en el cronograma.</p>
-                    <p className="text-sm text-muted-foreground mt-2">Asegúrate de que tus tareas tengan tanto `startDate` como `dueDate`.</p>
+                    <p className="text-muted-foreground">No hay tareas con fechas de entrega para mostrar en el cronograma.</p>
+                    <p className="text-sm text-muted-foreground mt-2">Asegúrate de que tus tareas tengan `dueDate`.</p>
                 </div>
             )}
         </CardContent>

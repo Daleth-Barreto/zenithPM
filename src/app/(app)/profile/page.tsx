@@ -112,9 +112,7 @@ export default function ProfilePage() {
        toast({
         variant: 'destructive',
         title: 'Error al eliminar la cuenta',
-        description: error.message === 'auth/requires-recent-login'
-            ? 'Esta operación requiere que inicies sesión de nuevo. Por favor, cierra sesión y vuelve a entrar para eliminar tu cuenta.'
-            : 'No se pudo eliminar la cuenta. Por favor, inténtalo de nuevo.',
+        description: getFirebaseAuthErrorMessage(error.code)
       });
     } finally {
         setIsDeleting(false);

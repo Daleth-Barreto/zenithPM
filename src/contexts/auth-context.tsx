@@ -116,25 +116,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       throw new Error("No hay un usuario autenticado para eliminar.");
     }
     const userToDelete = auth.currentUser;
-    try {
-      // Step 1: Delete user from Authentication
-      await deleteUser(userToDelete);
-      
-      // Step 2: Delete user data from Firestore
-      const userDocRef = doc(db, 'users', userToDelete.uid);
-      await deleteDoc(userDocRef);
-
-      // Note: This does not delete user-generated content like projects or tasks they own.
-      // A more robust solution would use a Cloud Function to clean up all associated data.
-      
-    } catch (error: any) {
-        console.error("Error al eliminar la cuenta:", error);
-        // Re-throw the error so the UI can handle it (e.g., show a toast)
-        if (error.code === 'auth/requires-recent-login') {
-            throw new Error('auth/requires-recent-login');
-        }
-        throw new Error('No se pudo eliminar la cuenta.');
-    }
+    // This action is sensitive and requires recent authentication.
+    // The component calling this function should handle the 'auth/requires-recent-login' error.
+    await deleteUser(userToDelete);
+    
+    // If deleteUser is successful, then proceed to delete Firestore data.
+    const userDocRef = doc(db, 'users', userToDelete.uid);
+    await deleteDoc(userDocRef);
   };
 
   const value = {

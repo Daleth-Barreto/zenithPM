@@ -1,3 +1,4 @@
+
 'use client';
 
 /**
@@ -9,6 +10,7 @@ export function getFirebaseAuthErrorMessage(errorCode: string): string {
   switch (errorCode) {
     case 'auth/user-not-found':
     case 'auth/wrong-password':
+    case 'auth/invalid-credential':
       return 'Correo electrónico o contraseña incorrectos. Por favor, verifica tus credenciales.';
     case 'auth/invalid-email':
       return 'El formato del correo electrónico no es válido. Por favor, revísalo.';
@@ -27,6 +29,8 @@ export function getFirebaseAuthErrorMessage(errorCode: string): string {
       return 'Hubo un problema de configuración. Por favor, contacta al soporte.';
     case 'auth/network-request-failed':
       return 'Error de red. Por favor, comprueba tu conexión a internet e inténtalo de nuevo.';
+    case 'auth/requires-recent-login':
+        return 'Tu sesión ha expirado. Por seguridad, cierra sesión y vuelve a iniciarla para realizar esta acción.';
     default:
       return 'Ocurrió un error inesperado. Por favor, inténtalo de nuevo.';
   }

@@ -9,10 +9,10 @@ import {
   LogOut,
   Settings,
   PanelLeft,
-  Users,
   Check,
   Mail,
   X,
+  Video,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -30,10 +30,12 @@ import { useAuth } from '@/contexts/auth-context';
 import { useRouter } from 'next/navigation';
 import { generateAvatar } from '@/lib/avatar';
 import { useEffect, useState } from 'react';
-import type { Invitation } from '@/lib/types';
-import { getInvitationsForUser, respondToInvitation } from '@/lib/firebase-services';
+import type { Invitation, Notification } from '@/lib/types';
+import { getInvitationsForUser, respondToInvitation, getNotificationsForUser, markNotificationAsRead } from '@/lib/firebase-services';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '../ui/badge';
+import { formatDistanceToNow } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 export function AppHeader() {
   const { user, signOut } = useAuth();
@@ -42,11 +44,16 @@ export function AppHeader() {
   const { toast } = useToast();
 
   const [invitations, setInvitations] = useState<Invitation[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
 
   useEffect(() => {
     if (user?.email) {
-      const unsubscribe = getInvitationsForUser(user.email, setInvitations);
-      return () => unsubscribe();
+      const unsubscribeInvites = getInvitationsForUser(user.email, setInvitations);
+      const unsubscribeNotifs = getNotificationsForUser(user.uid, setNotifications);
+      return () => {
+        unsubscribeInvites();
+        unsubscribeNotifs();
+      }
     }
   }, [user]);
 
@@ -72,9 +79,17 @@ export function AppHeader() {
     }
   };
 
+  const handleNotificationClick = async (notification: Notification) => {
+    if (notification.link) {
+      router.push(notification.link);
+    }
+    if (!notification.read) {
+      await markNotificationAsRead(notification.id);
+    }
+  };
 
   if (!user) {
-    return null; // Or a loading spinner
+    return null; 
   }
   
   const getInitials = (name: string | null | undefined) => {
@@ -83,7 +98,7 @@ export function AppHeader() {
   };
 
   const userAvatar = user.photoURL || generateAvatar(user.displayName || user.email || 'User');
-
+  const unreadCount = notifications.filter(n => !n.read).length + invitations.length;
 
   return (
     <header className="flex h-14 shrink-0 items-center gap-4 border-b bg-card px-4 lg:h-[60px] lg:px-6">
@@ -112,36 +127,62 @@ export function AppHeader() {
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="icon" className="rounded-full relative">
             <Bell className="h-5 w-5" />
-            {invitations.length > 0 && (
-              <Badge variant="destructive" className="absolute -top-1 -right-1 h-4 w-4 justify-center p-0">{invitations.length}</Badge>
+            {unreadCount > 0 && (
+              <Badge variant="destructive" className="absolute -top-1 -right-1 h-4 w-4 justify-center p-0">{unreadCount}</Badge>
             )}
             <span className="sr-only">Alternar notificaciones</span>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-96">
-            <DropdownMenuLabel>Invitaciones Pendientes</DropdownMenuLabel>
+            <DropdownMenuLabel>Notificaciones</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            {invitations.length > 0 ? (
-              invitations.map((invitation) => (
-              <DropdownMenuItem key={invitation.id} className="flex gap-3 items-center justify-between focus:bg-transparent" onSelect={(e) => e.preventDefault()}>
-                 <div className="flex gap-3 items-start">
-                    <div className="mt-1 text-muted-foreground"><Mail className="h-4 w-4" /></div>
-                    <div className="flex flex-col">
-                      <span className="font-semibold text-sm leading-tight">Invitación para unirse a {invitation.targetName}</span>
-                      <span className="text-xs text-muted-foreground">De: {invitation.inviterName}</span>
+            {invitations.length > 0 && (
+              <>
+                <DropdownMenuLabel className="text-xs text-muted-foreground px-2">Invitaciones</DropdownMenuLabel>
+                {invitations.map((invitation) => (
+                <DropdownMenuItem key={invitation.id} className="flex gap-3 items-center justify-between focus:bg-transparent" onSelect={(e) => e.preventDefault()}>
+                  <div className="flex gap-3 items-start">
+                      <div className="mt-1 text-muted-foreground"><Mail className="h-4 w-4" /></div>
+                      <div className="flex flex-col">
+                        <span className="font-semibold text-sm leading-tight">Invitación para unirse a {invitation.targetName}</span>
+                        <span className="text-xs text-muted-foreground">De: {invitation.inviterName}</span>
+                      </div>
+                  </div>
+                  <div className="flex gap-2">
+                      <Button size="icon" variant="ghost" className="h-7 w-7 text-green-500 hover:text-green-500 hover:bg-green-500/10" onClick={() => handleInvitationResponse(invitation.id, true)}><Check /></Button>
+                      <Button size="icon" variant="ghost" className="h-7 w-7 text-red-500 hover:text-red-500 hover:bg-red-500/10" onClick={() => handleInvitationResponse(invitation.id, false)}><X /></Button>
+                  </div>
+                </DropdownMenuItem>
+                ))}
+                <DropdownMenuSeparator />
+              </>
+            )}
+            {notifications.length > 0 ? (
+              notifications.map((notification) => (
+                <DropdownMenuItem key={notification.id} onSelect={() => handleNotificationClick(notification)} className={!notification.read ? 'bg-muted/50' : ''}>
+                  <div className="flex gap-3 items-start">
+                    <div className="mt-1 text-muted-foreground">
+                        {notification.message.includes('reunión') ? <Video className="h-4 w-4" /> : <Mail className="h-4 w-4" />}
                     </div>
-                 </div>
-                 <div className="flex gap-2">
-                    <Button size="icon" variant="ghost" className="h-7 w-7 text-green-500 hover:text-green-500 hover:bg-green-500/10" onClick={() => handleInvitationResponse(invitation.id, true)}><Check /></Button>
-                    <Button size="icon" variant="ghost" className="h-7 w-7 text-red-500 hover:text-red-500 hover:bg-red-500/10" onClick={() => handleInvitationResponse(invitation.id, false)}><X /></Button>
-                 </div>
+                    <div>
+                      <p className="text-sm">{notification.message}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatDistanceToNow(notification.createdAt.toDate(), { addSuffix: true, locale: es })}
+                      </p>
+                    </div>
+                  </div>
               </DropdownMenuItem>
-            ))
+              ))
             ) : (
                 <div className="text-center text-sm text-muted-foreground p-4">
-                    No tienes invitaciones pendientes.
+                    No tienes notificaciones.
                 </div>
             )}
+             {invitations.length === 0 && notifications.length === 0 && (
+                 <div className="text-center text-sm text-muted-foreground p-4">
+                    No tienes notificaciones pendientes.
+                </div>
+             )}
         </DropdownMenuContent>
       </DropdownMenu>
 

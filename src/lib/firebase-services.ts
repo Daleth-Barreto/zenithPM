@@ -19,6 +19,7 @@ import {
   orderBy,
   runTransaction,
   limit,
+  collectionGroup,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import type { Project, TeamMember, Task, TaskStatus, Comment, Team, Invitation, Notification } from './types';
@@ -62,6 +63,26 @@ export async function createNotificationsForUsers(userIds: string[], message: st
     await batch.commit();
 }
 
+export function getNotificationsForUser(userId: string, callback: (notifications: Notification[]) => void) {
+  const notifsRef = collection(db, 'notifications');
+  const q = query(notifsRef, where('userId', '==', userId), orderBy('createdAt', 'desc'), limit(20));
+
+  const unsubscribe = onSnapshot(q, (snapshot) => {
+    const notifications: Notification[] = [];
+    snapshot.forEach(doc => {
+      notifications.push({ id: doc.id, ...doc.data() } as Notification);
+    });
+    callback(notifications);
+  }, (error) => {
+    console.error("Error fetching notifications: ", error);
+  });
+  return unsubscribe;
+}
+
+export async function markNotificationAsRead(notificationId: string) {
+  const notifRef = doc(db, 'notifications', notificationId);
+  await updateDoc(notifRef, { read: true });
+}
 
 // --- USERS ---
 export async function checkUserExistsByEmail(email: string): Promise<{exists: boolean; uid: string | null; displayName: string | null}> {
@@ -193,29 +214,78 @@ export function getTasksForProject(
 }
 
 export function getTasksForTeam(
-  teamId: string,
-  callback: (tasks: (Task & { projectName: string, projectId: string })[]) => void
+    teamId: string,
+    callback: (tasks: (Task & { projectName: string, projectId: string })[]) => void
 ) {
-  const teamRef = doc(db, "projects", "placeholder", "teams", teamId); // This path seems incorrect but let's assume it finds the team.
-  
-  // First, find the project this team belongs to
-  const teamsCollectionGroup = query(collection(db, 'teams'), where('id', '==', teamId));
+    // 1. Get the team document to find out its project and members
+    const teamQuery = query(collectionGroup(db, 'teams'), where('__name__', '==', `projects/${teamId.split('/')[1]}/teams/${teamId.split('/')[0]}`));
 
-  const unsubscribe = onSnapshot(collection(db, 'teams'), (snapshot) => {
-     // This is inefficient. Needs a better way to find the project for a team
-  });
 
-  return unsubscribe;
+    const unsubscribeTeam = onSnapshot(collectionGroup(db, 'teams'), async (teamsSnapshot) => {
+        const teamDoc = teamsSnapshot.docs.find(doc => doc.id === teamId);
+
+        if (!teamDoc) {
+            callback([]);
+            return;
+        }
+
+        const team = teamDoc.data() as Team;
+        const memberIds = team.memberIds || [];
+        const projectId = team.projectId;
+
+        if (memberIds.length === 0 || !projectId) {
+            callback([]);
+            return;
+        }
+
+        // 2. Get the project name
+        const projectRef = doc(db, 'projects', projectId);
+        const projectSnap = await getDoc(projectRef);
+        const projectName = projectSnap.exists() ? projectSnap.data().name : 'Unknown Project';
+
+        // 3. Query all tasks in that project assigned to any team member
+        const tasksRef = collection(db, 'projects', projectId, 'tasks');
+        const tasksQuery = query(tasksRef, where('assignee.id', 'in', memberIds));
+
+        onSnapshot(tasksQuery, (tasksSnapshot) => {
+            const teamTasks: (Task & { projectName: string, projectId: string })[] = [];
+            tasksSnapshot.forEach(doc => {
+                const taskData = doc.data() as Task;
+                teamTasks.push({ ...taskData, id: doc.id, projectName, projectId });
+            });
+            callback(teamTasks);
+        }, (error) => {
+            console.error("Error fetching tasks for team:", error);
+            callback([]);
+        });
+    }, (error) => {
+        console.error("Error fetching team document:", error);
+    });
+
+    return unsubscribeTeam;
 }
 
 
 
+
+let user: User | null = null;
+// This is an async import, so we need to make sure we don't break SSR.
+if (typeof window !== 'undefined') {
+  import('firebase/auth').then(authModule => {
+    authModule.onAuthStateChanged(authModule.getAuth(), (authUser) => {
+      user = authUser;
+    });
+  });
+}
+
 export async function updateTaskStatus(projectId: string, taskId: string, newStatus: TaskStatus, order: number) {
   const taskRef = doc(db, 'projects', projectId, 'tasks', taskId);
+  await updateDoc(taskRef, { status: newStatus, order });
+
   const taskSnap = await getDoc(taskRef);
   if (taskSnap.exists() && user) {
      const taskData = taskSnap.data() as Task;
-     if (newStatus === 'done' && taskData.assignee?.id) {
+     if (newStatus === 'done' && taskData.assignee?.id && taskData.assignee.id !== user.uid) {
         await createNotification({
             userId: taskData.assignee.id,
             message: `${user.displayName} marcó la tarea "${taskData.title}" como completada.`,
@@ -223,7 +293,6 @@ export async function updateTaskStatus(projectId: string, taskId: string, newSta
         });
      }
   }
-  await updateDoc(taskRef, { status: newStatus, order });
 }
 
 export async function updateTaskOrder(projectId: string, taskId: string, order: number) {
@@ -231,31 +300,18 @@ export async function updateTaskOrder(projectId: string, taskId: string, order: 
     await updateDoc(taskRef, { order });
 }
 
-let user: User | null = null;
-if (typeof window !== 'undefined') {
-    const authModule = await import('firebase/auth');
-    authModule.onAuthStateChanged(authModule.getAuth(), (authUser) => {
-        user = authUser;
-    });
-}
-
 
 export async function updateTask(projectId: string, taskId:string, taskData: Partial<Omit<Task, 'id' | 'comments'>>) {
     const taskRef = doc(db, 'projects', projectId, 'tasks', taskId);
     
-    // Create a copy to avoid modifying the original object
-    const dataToUpdate = { ...taskData };
+    const dataToUpdate: any = { ...taskData };
     
-    // Firestore does not allow `undefined` values.
-    // We need to clean the object before sending it.
     Object.keys(dataToUpdate).forEach(key => {
-        const typedKey = key as keyof typeof dataToUpdate;
-        if (dataToUpdate[typedKey] === undefined) {
-            delete dataToUpdate[typedKey];
+        if (dataToUpdate[key] === undefined) {
+            delete dataToUpdate[key];
         }
     });
     
-    // Ensure subtasks is handled correctly
     if ('subtasks' in dataToUpdate) {
         dataToUpdate.subtasks = dataToUpdate.subtasks || [];
     }
@@ -271,7 +327,7 @@ export async function createTask(projectId: string, taskData: Omit<Task, 'id' | 
         comments: [],
     });
 
-    if (taskData.assignee && user) {
+    if (taskData.assignee && user && taskData.assignee.id !== user.uid) {
          createNotification({
             userId: taskData.assignee.id,
             message: `${user.displayName} te ha asignado una nueva tarea: "${taskData.title}"`,
@@ -298,7 +354,6 @@ export async function addCommentToTask(projectId: string, taskId: string, text: 
         createdAt: new Date(),
     };
     
-    // Generate a client-side ID for the comment
     const newComment: Comment = {
         ...commentData,
         id: doc(collection(db, 'dummy')).id,
@@ -308,14 +363,13 @@ export async function addCommentToTask(projectId: string, taskId: string, text: 
         comments: arrayUnion(newComment)
     });
     
-    // Create notification for the assignee
     const taskSnap = await getDoc(taskRef);
     const taskData = taskSnap.data() as Task;
     if (taskData.assignee && taskData.assignee.id !== user.uid) {
         createNotification({
             userId: taskData.assignee.id,
             message: `${user.displayName} comentó en la tarea: "${taskData.title}"`,
-            link: `/projects/${projectId}/board`, // Or link directly to task
+            link: `/projects/${projectId}/board`,
         });
     }
 }

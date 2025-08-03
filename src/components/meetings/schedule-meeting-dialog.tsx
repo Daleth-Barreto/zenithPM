@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Video, Copy, Send, Link as LinkIcon, AlertTriangle } from 'lucide-react';
+import { Loader2, Video, Send, Link as LinkIcon, AlertTriangle, Calendar as CalendarIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { Project, Team } from '@/lib/types';
 import { useAuth } from '@/contexts/auth-context';
@@ -23,6 +23,10 @@ import { Checkbox } from '../ui/checkbox';
 import { SocialIcon } from 'react-social-icons';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription } from '../ui/alert';
+import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
+import { Calendar } from '../ui/calendar';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 interface ScheduleMeetingDialogProps {
   project: Project;
@@ -35,6 +39,10 @@ export function ScheduleMeetingDialog({ project }: ScheduleMeetingDialogProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [title, setTitle] = useState(`Reunión del Proyecto: ${project.name}`);
   const [meetLink, setMeetLink] = useState('');
+  const [meetingDate, setMeetingDate] = useState<Date | undefined>(new Date());
+  const [meetingTime, setMeetingTime] = useState(
+    new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+  );
   const [teams, setTeams] = useState<Team[]>([]);
   const [selectedTeams, setSelectedTeams] = useState<string[]>([]);
   const [inviteAll, setInviteAll] = useState(true);
@@ -71,7 +79,7 @@ export function ScheduleMeetingDialog({ project }: ScheduleMeetingDialogProps) {
   };
 
   const handleSchedule = async () => {
-    if (!user || !meetLink) return;
+    if (!user || !meetLink || !meetingDate) return;
     setIsLoading(true);
     try {
         let recipientIds: string[] = [];
@@ -88,9 +96,11 @@ export function ScheduleMeetingDialog({ project }: ScheduleMeetingDialogProps) {
         recipientIds = recipientIds.filter(id => id !== user.uid);
 
         if (recipientIds.length > 0) {
+            const formattedDate = format(meetingDate, 'PPP', { locale: es });
+            const message = `🗓️ ${user.displayName} te ha invitado a una reunión: "${title}" el día ${formattedDate} a las ${meetingTime}`;
              await createNotificationsForUsers(
                 recipientIds,
-                `🗓️ ${user.displayName} te ha invitado a una reunión: "${title}"`,
+                message,
                 meetLink
              );
         }
@@ -101,7 +111,8 @@ export function ScheduleMeetingDialog({ project }: ScheduleMeetingDialogProps) {
         });
         
         setIsOpen(false);
-        setMeetLink(''); // Reset link after scheduling
+        setTitle(`Reunión del Proyecto: ${project.name}`);
+        setMeetLink('');
         
     } catch (error) {
         console.error('Error scheduling meeting:', error);
@@ -123,11 +134,11 @@ export function ScheduleMeetingDialog({ project }: ScheduleMeetingDialogProps) {
           Agendar Reunión
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Agendar Reunión con Google Meet</DialogTitle>
           <DialogDescription>
-            Genera un enlace único y notifica a tu equipo.
+            Genera un enlace, elige una fecha y notifica a tu equipo.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">
@@ -135,6 +146,45 @@ export function ScheduleMeetingDialog({ project }: ScheduleMeetingDialogProps) {
                 <Label htmlFor="title">Título de la Reunión</Label>
                 <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} />
             </div>
+
+            <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                    <Label htmlFor="date">Fecha</Label>
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button
+                            variant={"outline"}
+                            className={cn(
+                                "w-full justify-start text-left font-normal",
+                                !meetingDate && "text-muted-foreground"
+                            )}
+                            >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {meetingDate ? format(meetingDate, "PPP", { locale: es }) : <span>Elige una fecha</span>}
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0">
+                            <Calendar
+                            mode="single"
+                            selected={meetingDate}
+                            onSelect={setMeetingDate}
+                            initialFocus
+                            locale={es}
+                            />
+                        </PopoverContent>
+                    </Popover>
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="time">Hora</Label>
+                    <Input
+                        id="time"
+                        type="time"
+                        value={meetingTime}
+                        onChange={(e) => setMeetingTime(e.target.value)}
+                    />
+                </div>
+            </div>
+
              <div className="space-y-2">
                 <Label>Enlace de la Reunión</Label>
                 <div className="space-y-3">
@@ -147,7 +197,7 @@ export function ScheduleMeetingDialog({ project }: ScheduleMeetingDialogProps) {
                      <Alert variant="default" className="text-xs">
                          <AlertTriangle className="h-4 w-4" />
                         <AlertDescription>
-                            Esto abrirá una nueva pestaña. Copia la URL de la reunión y pégala a continuación.
+                           Esto abrirá una nueva pestaña. Copia la URL de la reunión y pégala a continuación.
                         </AlertDescription>
                     </Alert>
                     <div className="flex items-center gap-2">

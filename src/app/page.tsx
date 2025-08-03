@@ -19,11 +19,14 @@ import {
   CheckCircle,
   TrendingUp,
   HelpCircle,
+  Check,
 } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { cn } from '@/lib/utils';
+import { useState } from 'react';
 
 function ProjectManagementIllustration(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -128,8 +131,53 @@ function ProjectManagementIllustration(props: React.SVGProps<SVGSVGElement>) {
   );
 }
 
+const pricingPlans = [
+    {
+        name: 'Freelancer',
+        price: '$0',
+        description: 'Ideal para individuos y freelancers que empiezan.',
+        features: [
+            'Hasta 3 proyectos',
+            'Colaboración básica',
+            '2GB de almacenamiento',
+            'Resúmenes con IA (limitado)',
+        ],
+        cta: 'Comienza Gratis',
+        isPopular: false,
+    },
+    {
+        name: 'Startup',
+        price: '$29',
+        priceDetail: '/mes',
+        description: 'Perfecto para equipos pequeños y startups en crecimiento.',
+        features: [
+            'Proyectos ilimitados',
+            'Roles y permisos de equipo',
+            '50GB de almacenamiento',
+            'Soporte prioritario',
+            'Resúmenes con IA avanzados',
+        ],
+        cta: 'Elige Startup',
+        isPopular: true,
+    },
+    {
+        name: 'Enterprise',
+        price: 'Contáctanos',
+        description: 'Soluciones a medida para grandes organizaciones.',
+        features: [
+            'Todo lo de Startup y más',
+            'Seguridad avanzada (SSO)',
+            'SLA y soporte dedicado',
+            'Analíticas e informes',
+            'Personalización de la marca',
+        ],
+        cta: 'Solicita una Demo',
+        isPopular: false,
+    },
+];
 
 export default function LandingPage() {
+  const [billingCycle, setBillingCycle] = useState('monthly');
   return (
     <>
       <div className="flex flex-col min-h-screen bg-background text-foreground font-body antialiased">
@@ -211,9 +259,62 @@ export default function LandingPage() {
               </div>
             </div>
           </section>
+        
+          {/* Pricing Section */}
+          <section id="pricing" className="py-20 px-4 md:px-8">
+            <div className="container mx-auto">
+                <div className="text-center mb-12">
+                    <h2 className="text-3xl md:text-4xl font-bold">Precios simples y transparentes</h2>
+                    <p className="text-muted-foreground mt-4 max-w-2xl mx-auto">
+                        Elige el plan que se adapte a tus necesidades. Comienza gratis y escala a medida que creces.
+                    </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+                    {pricingPlans.map((plan) => (
+                        <Card
+                            key={plan.name}
+                            className={cn(
+                                'flex flex-col',
+                                plan.isPopular ? 'border-primary ring-2 ring-primary shadow-lg' : ''
+                            )}
+                        >
+                            {plan.isPopular && (
+                                <div className="bg-primary text-primary-foreground text-xs font-bold uppercase py-1 px-4 text-center">
+                                    Más Popular
+                                </div>
+                            )}
+                            <CardHeader className="items-center text-center">
+                                <CardTitle className="text-2xl">{plan.name}</CardTitle>
+                                <div className="flex items-baseline">
+                                    <span className="text-4xl font-bold tracking-tight">{plan.price}</span>
+                                    {plan.priceDetail && <span className="text-muted-foreground ml-1">{plan.priceDetail}</span>}
+                                </div>
+                                <CardDescription>{plan.description}</CardDescription>
+                            </CardHeader>
+                            <CardContent className="flex-1">
+                                <ul className="space-y-4">
+                                    {plan.features.map((feature, index) => (
+                                        <li key={index} className="flex items-center gap-2">
+                                            <CheckCircle className="h-5 w-5 text-green-500" />
+                                            <span className="text-muted-foreground">{feature}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </CardContent>
+                            <div className="p-6">
+                                <Button asChild className="w-full" variant={plan.isPopular ? 'default' : 'outline'}>
+                                    <Link href="/signup">{plan.cta}</Link>
+                                </Button>
+                            </div>
+                        </Card>
+                    ))}
+                </div>
+            </div>
+          </section>
 
           {/* How It Works Section */}
-          <section className="py-20 px-4 md:px-8">
+          <section className="py-20 px-4 md:px-8 bg-muted/50">
             <div className="container mx-auto">
               <div className="text-center mb-16">
                 <h2 className="text-3xl md:text-4xl font-bold">Comienza en Minutos</h2>

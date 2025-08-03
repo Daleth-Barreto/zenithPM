@@ -1,3 +1,4 @@
+
 import { FolderKanban, PlusCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ProjectCard } from '@/components/projects/project-card';
@@ -11,7 +12,7 @@ export default function DashboardPage() {
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div className="flex items-center justify-between space-y-2">
-        <h2 className="text-3xl font-bold tracking-tight">Portafolio de Proyectos</h2>
+        <h2 className="text-3xl font-bold tracking-tight" data-tour="dashboard-title">Portafolio de Proyectos</h2>
         <div className="flex items-center space-x-2">
           <NewProjectDialog />
         </div>

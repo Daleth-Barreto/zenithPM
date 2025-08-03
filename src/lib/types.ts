@@ -53,8 +53,11 @@ export interface SignUpData extends SignInData {
   fullName: string;
 }
 
+export type Plan = 'Freelancer' | 'Startup' | 'Enterprise';
+
 export interface SignUpFormValues extends SignUpData {
     confirmPassword?: string;
     company?: string;
     role?: string;
+    plan?: Plan;
 }

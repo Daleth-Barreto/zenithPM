@@ -1,3 +1,4 @@
+
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -17,7 +18,7 @@ export function NewProjectDialog() {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button>
+        <Button data-tour="new-project-btn">
           <PlusCircle className="mr-2 h-4 w-4" />
           Nuevo Proyecto
         </Button>

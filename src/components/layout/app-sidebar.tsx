@@ -65,7 +65,7 @@ export function AppSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
 
-          <Collapsible defaultOpen={true}>
+          <Collapsible defaultOpen={true} data-tour="sidebar-projects">
             <CollapsibleTrigger asChild className="w-full group/menu-item">
               <SidebarMenuButton className="justify-between group-data-[collapsible=icon]:justify-center">
                 <div className="flex items-center gap-2">

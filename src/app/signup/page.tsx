@@ -11,14 +11,15 @@ import { Logo } from '@/components/logo';
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Eye, EyeOff } from 'lucide-react';
+import { Loader2, Eye, EyeOff, CheckCircle } from 'lucide-react';
 import { getFirebaseAuthErrorMessage } from '@/lib/firebase-errors';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { AuthKanban } from '@/components/auth/auth-kanban';
 import type { SignUpFormValues } from '@/lib/types';
+import { cn } from '@/lib/utils';
 
 function GoogleIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -49,6 +50,27 @@ function GoogleIcon(props: React.SVGProps<SVGSVGElement>) {
   );
 }
 
+const pricingPlans = [
+    {
+        name: 'Freelancer',
+        price: '$0',
+        description: 'Ideal para individuos.',
+        cta: 'Comienza Gratis',
+    },
+    {
+        name: 'Startup',
+        price: '$29/mes',
+        description: 'Perfecto para equipos.',
+        cta: 'Elige Startup',
+    },
+    {
+        name: 'Enterprise',
+        price: 'Personalizado',
+        description: 'Para grandes organizaciones.',
+        cta: 'Contacta con Ventas',
+    },
+];
+
 const signupSchema = z.object({
   fullName: z.string().min(2, { message: "El nombre debe tener al menos 2 caracteres." }),
   email: z.string().email({ message: "Por favor, introduce un correo electrónico válido." }),
@@ -60,7 +82,8 @@ const signupSchema = z.object({
     .regex(/[a-z]/, { message: "La contraseña debe contener al menos una minúscula." })
     .regex(/[0-9]/, { message: "La contraseña debe contener al menos un número." })
     .regex(/[^A-Za-z0-9]/, { message: "La contraseña debe contener al menos un carácter especial." }),
-  confirmPassword: z.string()
+  confirmPassword: z.string(),
+  plan: z.string({ required_error: "Por favor, selecciona un plan." }),
 }).refine(data => data.password === data.confirmPassword, {
   message: "Las contraseñas no coinciden.",
   path: ["confirmPassword"],
@@ -85,6 +108,7 @@ export default function SignupPage() {
       role: '',
       password: '',
       confirmPassword: '',
+      plan: 'Freelancer',
     },
     mode: 'onTouched',
   });
@@ -282,7 +306,36 @@ export default function SignupPage() {
                   </FormItem>
                 )}
               />
-
+              <FormField
+                control={form.control}
+                name="plan"
+                render={({ field }) => (
+                  <FormItem className="space-y-3">
+                    <FormLabel>Elige tu plan</FormLabel>
+                    <FormControl>
+                      <div className="grid grid-cols-3 gap-4">
+                        {pricingPlans.map((plan) => (
+                           <div
+                              key={plan.name}
+                              onClick={() => field.onChange(plan.name)}
+                              className={cn(
+                                'relative cursor-pointer rounded-lg border p-4 transition-all',
+                                field.value === plan.name ? 'border-primary ring-2 ring-primary' : ''
+                              )}
+                            >
+                              {field.value === plan.name && (
+                                <CheckCircle className="absolute top-2 right-2 h-5 w-5 text-primary" />
+                              )}
+                              <h3 className="font-semibold">{plan.name}</h3>
+                              <p className="text-sm text-muted-foreground">{plan.price}</p>
+                           </div>
+                        ))}
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Crear una cuenta

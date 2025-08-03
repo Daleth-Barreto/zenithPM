@@ -48,44 +48,7 @@ const generateTasks = (count: number): Task[] => {
 
 const allTasks = generateTasks(25);
 
-export const mockProjects: Project[] = [
-  {
-    id: 'proj-1',
-    name: 'QuantumLeap CRM',
-    description: 'Una plataforma CRM de nueva generación que utiliza IA para predecir las necesidades del cliente.',
-    imageUrl: 'https://placehold.co/600x400/408080/FFFFFF',
-    progress: 75,
-    team: mockTeamMembers.slice(0, 4),
-    tasks: allTasks.slice(0, 10),
-  },
-  {
-    id: 'proj-2',
-    name: 'App Móvil StellarWallet',
-    description: 'Una billetera de criptomonedas segura y fácil de usar para dispositivos móviles.',
-    imageUrl: 'https://placehold.co/600x400/40B080/FFFFFF',
-    progress: 40,
-    team: mockTeamMembers.slice(1, 5),
-    tasks: allTasks.slice(10, 20),
-  },
-  {
-    id: 'proj-3',
-    name: 'Migración a la Nube NovaDB',
-    description: 'Migración de sistemas de bases de datos heredados a una infraestructura de nube moderna.',
-    imageUrl: 'https://placehold.co/600x400/222222/FFFFFF',
-    progress: 90,
-    team: mockTeamMembers.slice(2, 4),
-    tasks: allTasks.slice(20, 25),
-  },
-  {
-    id: 'proj-4',
-    name: 'Proyecto Fénix',
-    description: 'Herramienta interna para la gestión de proyectos y la colaboración en equipo.',
-    imageUrl: 'https://placehold.co/600x400/E94F37/FFFFFF',
-    progress: 15,
-    team: mockTeamMembers.slice(0, 3),
-    tasks: [],
-  },
-];
+export const mockProjects: Project[] = [];
 
 export const getProjectById = (id: string | undefined): Project | undefined => {
   return mockProjects.find(p => p.id === id);

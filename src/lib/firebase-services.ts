@@ -352,16 +352,12 @@ export async function updateTaskOrder(projectId: string, taskId: string, order: 
 export async function updateTask(projectId: string, taskId:string, taskData: Partial<Omit<Task, 'id' | 'comments'>>) {
     const taskRef = doc(db, 'projects', projectId, 'tasks', taskId);
     
-    const dataToUpdate: any = { ...taskData };
-    
-    // Add or remove assigneeId based on assignee presence
-    if (dataToUpdate.assignee) {
-        dataToUpdate.assigneeId = dataToUpdate.assignee.id;
-    } else if (dataToUpdate.hasOwnProperty('assignee') && dataToUpdate.assignee === null) {
-        // If assignee is explicitly set to null, remove assigneeId
-        dataToUpdate.assigneeId = deleteDoc; // This is not correct. It should be deleteField() but that's a server side value
-    }
+    const dataToUpdate: { [key: string]: any } = { ...taskData };
 
+    if ('assignee' in dataToUpdate) {
+        dataToUpdate.assigneeId = dataToUpdate.assignee ? dataToUpdate.assignee.id : null;
+    }
+    
     Object.keys(dataToUpdate).forEach(key => {
         if (dataToUpdate[key] === undefined) {
             delete dataToUpdate[key];
@@ -372,13 +368,7 @@ export async function updateTask(projectId: string, taskId:string, taskData: Par
         dataToUpdate.subtasks = dataToUpdate.subtasks || [];
     }
 
-    // A better way to remove a field
-    const finalData = {...dataToUpdate};
-    if (finalData.assignee === null) {
-        finalData.assigneeId = null; // Storing null is better than deleting
-    }
-
-    await updateDoc(taskRef, finalData);
+    await updateDoc(taskRef, dataToUpdate);
 }
 
 export async function createTask(projectId: string, taskData: Omit<Task, 'id' | 'order' | 'comments'> & {order: number}) {
@@ -386,13 +376,10 @@ export async function createTask(projectId: string, taskData: Omit<Task, 'id' | 
     
     const dataToCreate: any = {
         ...taskData,
+        assigneeId: taskData.assignee ? taskData.assignee.id : null,
         subtasks: [],
         comments: [],
     };
-
-    if (taskData.assignee) {
-        dataToCreate.assigneeId = taskData.assignee.id;
-    }
     
     const newDocRef = await addDoc(tasksRef, dataToCreate);
 
@@ -427,9 +414,13 @@ export async function addCommentToTask(projectId: string, taskId: string, text: 
     }
     
     const newComment: Comment = {
-        ...commentData,
         id: doc(collection(db, 'dummy')).id,
-    }
+        text: commentData.text,
+        authorId: commentData.authorId,
+        authorName: commentData.authorName,
+        createdAt: commentData.createdAt,
+        ...(commentData.authorAvatarUrl && { authorAvatarUrl: commentData.authorAvatarUrl }),
+    };
 
     await updateDoc(taskRef, {
         comments: arrayUnion(newComment)

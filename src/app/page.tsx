@@ -4,6 +4,12 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/logo';
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
+import {
   ArrowRight,
   LayoutGrid,
   Users,
@@ -11,12 +17,12 @@ import {
   BarChart,
   CheckCircle,
   TrendingUp,
-  MessageSquarePlus,
+  HelpCircle,
 } from 'lucide-react';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 function ProjectManagementIllustration(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -243,84 +249,48 @@ export default function LandingPage() {
           </div>
         </section>
         
-        {/* Testimonials Section */}
+        {/* FAQ Section */}
         <section className="py-20 px-4 md:px-8 bg-muted/50">
           <div className="container mx-auto">
             <div className="text-center mb-12">
-              <h2 className="text-3xl md:text-4xl font-bold">Amado por Equipos Productivos</h2>
+              <h2 className="text-3xl md:text-4xl font-bold">Preguntas Frecuentes</h2>
+              <p className="text-muted-foreground mt-4 max-w-2xl mx-auto">
+                ¿Tienes preguntas? Tenemos respuestas. Aquí están algunas de las más comunes.
+              </p>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-              <Card>
-                <CardContent className="p-6">
-                  <p className="mb-4">"ZenithPM ha revolucionado nuestra forma de trabajar. La claridad que nos da sobre nuestros proyectos es increíble. ¡Hemos aumentado nuestra eficiencia en un 30%!"</p>
-                  <div className="flex items-center gap-4">
-                    <Avatar>
-                      <AvatarImage src="https://placehold.co/100x100/408080/FFFFFF" data-ai-hint="woman smiling" />
-                      <AvatarFallback>CJ</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-semibold">Carla Jiménez</p>
-                      <p className="text-sm text-muted-foreground">Directora de Proyecto, Innovatech</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-6">
-                  <p className="mb-4">"La función de resúmenes con IA es mágica. Ahorramos horas cada semana en la redacción de actas de reuniones. Es una herramienta indispensable para nosotros."</p>
-                   <div className="flex items-center gap-4">
-                    <Avatar>
-                       <AvatarImage src="https://placehold.co/100x100/E94F37/FFFFFF" data-ai-hint="man portrait" />
-                       <AvatarFallback>MR</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-semibold">Marcos Rivera</p>
-                      <p className="text-sm text-muted-foreground">Líder de Equipo, Soluciones Digitales</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-               <Card>
-                <CardContent className="p-6">
-                  <p className="mb-4">"Simple, potente y estéticamente agradable. ZenithPM es la primera herramienta de gestión que realmente disfruto usar a diario. El modo oscuro es perfecto."</p>
-                   <div className="flex items-center gap-4">
-                    <Avatar>
-                       <AvatarImage src="https://placehold.co/100x100/6A5ACD/FFFFFF" data-ai-hint="person tech" />
-                       <AvatarFallback>LP</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-semibold">Líder de Proyecto</p>
-                      <p className="text-sm text-muted-foreground">Kavexa</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-6">
-                  <p className="mb-4">"Como freelance, mantener múltiples proyectos organizados era una pesadilla. ZenithPM me ha devuelto la cordura. ¡No podría vivir sin él!"</p>
-                   <div className="flex items-center gap-4">
-                    <Avatar>
-                       <AvatarImage data-ai-hint="abstract geometric" />
-                       <AvatarFallback>?</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-semibold">Usuario Anónimo</p>
-                      <p className="text-sm text-muted-foreground">Freelancer</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-            <div className="text-center mt-12">
-                <Card className="max-w-2xl mx-auto p-6 text-left">
-                  <h3 className="text-xl font-semibold mb-4 flex items-center"><MessageSquarePlus className="w-6 h-6 mr-2 text-primary" /> Deja tu propia reseña</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                    <Input placeholder="Tu nombre (opcional)" />
-                    <Input placeholder="Tu rol o empresa (opcional)" />
-                  </div>
-                  <Textarea placeholder="Escribe aquí tu experiencia con ZenithPM..." rows={4} className="mb-4" />
-                  <Button>Enviar Reseña</Button>
-                </Card>
+            <div className="max-w-3xl mx-auto">
+              <Accordion type="single" collapsible className="w-full">
+                <AccordionItem value="item-1">
+                  <AccordionTrigger>¿ZenithPM es adecuado para equipos pequeños?</AccordionTrigger>
+                  <AccordionContent>
+                    ¡Absolutamente! ZenithPM es escalable y perfecto tanto para freelancers como para equipos pequeños y grandes empresas. Puedes empezar con un plan gratuito y crecer a medida que tu equipo lo necesite.
+                  </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="item-2">
+                  <AccordionTrigger>¿Qué integraciones soporta ZenithPM?</AccordionTrigger>
+                  <AccordionContent>
+                    Actualmente estamos trabajando en integraciones con herramientas populares como Slack, GitHub, Google Drive y más. Nuestro objetivo es que ZenithPM se convierta en el centro de tu flujo de trabajo.
+                  </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="item-3">
+                  <AccordionTrigger>¿Mis datos están seguros?</AccordionTrigger>
+                  <AccordionContent>
+                    La seguridad es nuestra máxima prioridad. Utilizamos encriptación de extremo a extremo, copias de seguridad regulares y cumplimos con los estándares más altos de la industria para garantizar que tus datos estén siempre protegidos.
+                  </AccordionContent>
+                </AccordionItem>
+                 <AccordionItem value="item-4">
+                  <AccordionTrigger>¿Cómo funciona la facturación?</AccordionTrigger>
+                  <AccordionContent>
+                    Ofrecemos planes mensuales y anuales flexibles. Puedes cambiar de plan, actualizar o cancelar tu suscripción en cualquier momento desde el panel de configuración de tu cuenta. El plan anual ofrece un descuento significativo.
+                  </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="item-5">
+                  <AccordionTrigger>¿Puedo importar datos de otras herramientas?</AccordionTrigger>
+                  <AccordionContent>
+                    Sí, estamos desarrollando herramientas de importación para que puedas traer fácilmente tus proyectos y tareas desde otras plataformas como Trello, Asana y Jira. Queremos que tu transición a ZenithPM sea lo más fluida posible.
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
             </div>
           </div>
         </section>

@@ -2,31 +2,10 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    match /projects/{projectId} {
-      // Allow a user to read a project if they are a member of the team.
-      // Allow list/query if the query filters by the user's UID.
-      allow list: if request.auth != null && request.auth.uid == request.query.where.value[2];
-      allow get: if request.auth != null && request.auth.uid in resource.data.teamIds;
-      
-      // Allow write (create, update) if the user is authenticated and is part of the team.
-      allow write: if request.auth != null && request.auth.uid in request.resource.data.teamIds;
-
-      // Rules for the 'tasks' subcollection
-      match /tasks/{taskId} {
-        // Allow read/write to tasks only if the user is a member of the parent project.
-        allow read, write: if request.auth != null && get(/databases/$(database)/documents/projects/$(projectId)).data.teamIds.hasAny([request.auth.uid]);
-      }
-    }
-
-    match /teams/{teamId} {
-      // Allow a user to read a team document if they are a member.
-      // Allow list/query if the query filters by the user's UID.
-      allow list: if request.auth != null && request.auth.uid == request.query.where.value[2];
-      allow get: if request.auth != null && request.auth.uid in resource.data.memberIds;
-
-      // Allow write (create, update) if the user is authenticated and is part of the team.
-      allow write: if request.auth != null && request.auth.uid in request.resource.data.memberIds;
+    // Reglas de desarrollo: permite leer y escribir a cualquier usuario autenticado.
+    // Esto es permisivo y debe ser restringido antes de pasar a producción.
+    match /{document=**} {
+      allow read, write: if request.auth != null;
     }
   }
 }

@@ -64,7 +64,19 @@ export function KanbanBoard({ project }: KanbanBoardProps) {
     });
 
     setColumns(newColumns);
-  }, [tasks]);
+
+    // This is the key change: keep selectedTask in sync with the master task list
+    if (selectedTask) {
+      const updatedSelectedTask = tasks.find(t => t.id === selectedTask.id);
+      if (updatedSelectedTask) {
+        setSelectedTask(updatedSelectedTask);
+      } else {
+        // The task was deleted, so close the sheet
+        setSelectedTask(null);
+      }
+    }
+
+  }, [tasks, selectedTask?.id]);
 
   const handleAddTask = async (status: TaskStatus) => {
     const order = columns[status].items.length;
@@ -198,6 +210,8 @@ export function KanbanBoard({ project }: KanbanBoardProps) {
         isOpen={!!selectedTask}
         onClose={() => setSelectedTask(null)}
         onUpdate={(updatedTask) => {
+            // This is primarily for when we are editing the task details.
+            // The real-time updates are handled by the useEffect above.
             setSelectedTask(updatedTask);
         }}
       />

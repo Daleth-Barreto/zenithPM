@@ -32,6 +32,7 @@ import {
   Plus,
   Send,
   MessageSquare,
+  Edit,
 } from 'lucide-react';
 import type { Task, Project, TaskPriority, TaskStatus, Subtask, SubtaskStatus } from '@/lib/types';
 import { Calendar } from '../ui/calendar';
@@ -55,6 +56,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/auth-context';
+import { Badge } from '../ui/badge';
 
 
 interface TaskDetailsSheetProps {
@@ -65,8 +67,23 @@ interface TaskDetailsSheetProps {
   onUpdate: (task: Task) => void;
 }
 
+const priorityMap: Record<TaskPriority, string> = {
+    low: 'Baja',
+    medium: 'Media',
+    high: 'Alta',
+    urgent: 'Urgente'
+}
+
+const statusMap: Record<TaskStatus, string> = {
+    backlog: 'Pendiente',
+    'in-progress': 'En Progreso',
+    review: 'En Revisión',
+    done: 'Hecho'
+}
+
 export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: TaskDetailsSheetProps) {
   const [currentTask, setCurrentTask] = useState<Task | null>(task);
+  const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
@@ -76,7 +93,11 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
   const debouncedSaveRef = useRef<NodeJS.Timeout>();
 
   useEffect(() => {
-    setCurrentTask(task);
+    // Reset editing state when a new task is passed in
+    if (task) {
+      setCurrentTask(task);
+      setIsEditing(false);
+    }
   }, [task]);
 
   const saveTask = useCallback(async (taskToSave: Task) => {
@@ -90,6 +111,7 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
     }
     debouncedSaveRef.current = setTimeout(() => saveTask(updatedTask), 1000);
   }, [saveTask]);
+
 
   if (!currentTask) return null;
 
@@ -150,7 +172,7 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
     try {
         await saveTask(currentTask);
         onUpdate(currentTask); 
-        onClose(); 
+        setIsEditing(false); // Go back to view mode
         toast({
             title: 'Tarea Actualizada',
             description: `Se han guardado los cambios para "${currentTask.title}".`
@@ -188,23 +210,146 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
         setIsDeleting(false);
     }
   }
+  
+  const handleCancelEdit = () => {
+      setCurrentTask(task); // Revert changes to original task state
+      setIsEditing(false);
+  }
+  
+  const renderViewMode = () => (
+      <>
+        <div className="flex-1 overflow-y-auto pr-6 -mr-6 pl-1 -ml-1">
+            <div className="space-y-6 py-4">
+                {currentTask.description ? (
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{currentTask.description}</p>
+                ) : (
+                    <p className="text-sm text-muted-foreground italic">No hay descripción para esta tarea.</p>
+                )}
 
+                <Separator />
 
-  return (
-    <Sheet open={isOpen} onOpenChange={onClose}>
-      <SheetContent className="w-full sm:max-w-xl md:max-w-2xl flex flex-col">
-        <SheetHeader>
-          <SheetTitle>
-            <Input 
-              value={currentTask.title} 
-              onChange={(e) => handleFieldChange('title', e.target.value)}
-              className="text-2xl font-bold border-none shadow-none focus-visible:ring-0 p-0"
-            />
-          </SheetTitle>
-          <SheetDescription>
-            En el proyecto <span className="font-semibold text-primary">{project.name}</span>
-          </SheetDescription>
-        </SheetHeader>
+                <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+                    <div className="flex items-center gap-2 text-sm">
+                        <User className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-medium">Asignado a:</span>
+                        {currentTask.assignee ? (
+                            <div className="flex items-center gap-2">
+                                <Avatar className="h-6 w-6">
+                                    <AvatarImage src={currentTask.assignee.avatarUrl} />
+                                    <AvatarFallback>{currentTask.assignee.initials}</AvatarFallback>
+                                </Avatar>
+                                <span>{currentTask.assignee.name}</span>
+                            </div>
+                        ) : <span className="text-muted-foreground italic">Sin asignar</span>}
+                    </div>
+
+                     <div className="flex items-center gap-2 text-sm">
+                        <AlertCircle className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-medium">Prioridad:</span>
+                        <Badge variant="outline">{priorityMap[currentTask.priority]}</Badge>
+                    </div>
+
+                    <div className="flex items-center gap-2 text-sm">
+                        <Tag className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-medium">Estado:</span>
+                        <span>{statusMap[currentTask.status]}</span>
+                    </div>
+
+                     <div className="flex items-center gap-2 text-sm">
+                        <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-medium">Fecha Límite:</span>
+                        <span>{currentTask.dueDate ? format(new Date(currentTask.dueDate), 'PPP', { locale: es }) : <span className="text-muted-foreground italic">No definida</span>}</span>
+                    </div>
+                </div>
+
+                {currentTask.subtasks && currentTask.subtasks.length > 0 && (
+                     <>
+                        <Separator />
+                        <div className="space-y-3">
+                            <Label>Subtareas</Label>
+                             {currentTask.subtasks.map(subtask => (
+                                <div key={subtask.id} className="flex items-center gap-3">
+                                <Checkbox
+                                    id={`subtask-view-${subtask.id}`}
+                                    checked={subtask.status === 'completed'}
+                                    disabled
+                                />
+                                <label
+                                    htmlFor={`subtask-view-${subtask.id}`}
+                                    className={cn(
+                                    "text-sm font-medium leading-none flex-1",
+                                    subtask.status === 'completed' && "line-through text-muted-foreground"
+                                    )}
+                                >
+                                    {subtask.title}
+                                </label>
+                                </div>
+                            ))}
+                        </div>
+                    </>
+                )}
+                
+                <Separator />
+            
+                <div className="space-y-4">
+                  <Label>
+                    <MessageSquare className="inline-block mr-2 h-4 w-4" />
+                    Comentarios
+                  </Label>
+                  <div className="space-y-4">
+                    {[...(currentTask.comments || [])].sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map(comment => (
+                        <div key={comment.id} className="flex gap-3">
+                        <Avatar>
+                            <AvatarImage src={comment.authorAvatarUrl} />
+                            <AvatarFallback>{comment.authorName.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <div className="p-3 rounded-lg bg-muted flex-1">
+                            <div className="flex justify-between items-center">
+                                <p className="text-sm font-semibold">{comment.authorName}</p>
+                                <p className="text-xs text-muted-foreground">
+                                    {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true, locale: es })}
+                                </p>
+                            </div>
+                            <p className="text-sm mt-1 whitespace-pre-wrap">{comment.text}</p>
+                        </div>
+                        </div>
+                    ))}
+
+                     {(!currentTask.comments || currentTask.comments.length === 0) && (
+                        <p className="text-sm text-muted-foreground text-center py-4">No hay comentarios todavía.</p>
+                    )}
+                  </div>
+                  <div className="flex gap-2 items-center">
+                     <Avatar className="h-8 w-8">
+                        <AvatarImage src={user?.photoURL || undefined} />
+                        <AvatarFallback>{user?.displayName?.charAt(0) || 'U'}</AvatarFallback>
+                    </Avatar>
+                    <Textarea 
+                        placeholder="Escribe un comentario..." 
+                        value={newComment} 
+                        onChange={e => setNewComment(e.target.value)}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                handleAddComment();
+                            }
+                        }}
+                        rows={1}
+                    />
+                    <Button size="icon" onClick={handleAddComment} disabled={!newComment.trim()}><Send className="h-4 w-4" /></Button>
+                  </div>
+                </div>
+
+            </div>
+        </div>
+        <SheetFooter className="pt-4 border-t">
+            <Button variant="outline" className="w-full" onClick={onClose}>Cerrar</Button>
+        </SheetFooter>
+      </>
+  )
+
+  const renderEditMode = () => (
+       <>
         <div className="flex-1 overflow-y-auto pr-6 -mr-6 pl-1 -ml-1">
           <div className="grid gap-6 py-4">
             <div className="grid gap-2">
@@ -366,51 +511,6 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
             
             <Separator />
             <TaskAssigner task={currentTask} project={project} />
-            <Separator />
-            
-            <div className="space-y-4">
-              <Label>
-                <MessageSquare className="inline-block mr-2 h-4 w-4" />
-                Comentarios
-              </Label>
-              <div className="space-y-4">
-                {[...(currentTask.comments || [])].sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map(comment => (
-                    <div key={comment.id} className="flex gap-3">
-                    <Avatar>
-                        <AvatarImage src={comment.authorAvatarUrl} />
-                        <AvatarFallback>{comment.authorName.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                    <div className="p-3 rounded-lg bg-muted flex-1">
-                        <div className="flex justify-between items-center">
-                            <p className="text-sm font-semibold">{comment.authorName}</p>
-                            <p className="text-xs text-muted-foreground">
-                                {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true, locale: es })}
-                            </p>
-                        </div>
-                        <p className="text-sm mt-1">{comment.text}</p>
-                    </div>
-                    </div>
-                ))}
-
-                 {(!currentTask.comments || currentTask.comments.length === 0) && (
-                    <p className="text-sm text-muted-foreground text-center py-4">No hay comentarios todavía.</p>
-                )}
-              </div>
-              <div className="flex gap-2 items-center">
-                 <Avatar className="h-8 w-8">
-                    <AvatarImage src={user?.photoURL || undefined} />
-                    <AvatarFallback>{user?.displayName?.charAt(0) || 'U'}</AvatarFallback>
-                </Avatar>
-                <Input 
-                    placeholder="Escribe un comentario..." 
-                    value={newComment} 
-                    onChange={e => setNewComment(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleAddComment()}
-                />
-                <Button size="icon" onClick={handleAddComment} disabled={!newComment.trim()}><Send className="h-4 w-4" /></Button>
-              </div>
-            </div>
-
           </div>
         </div>
         <SheetFooter className="pt-4 border-t">
@@ -437,14 +537,47 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
             </AlertDialogContent>
           </AlertDialog>
          
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={handleCancelEdit}>
             Cancelar
           </Button>
           <Button onClick={handleSaveAndClose} disabled={isSaving}>
             {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Guardar y Cerrar
+            Guardar Cambios
           </Button>
         </SheetFooter>
+      </>
+  )
+
+  return (
+    <Sheet open={isOpen} onOpenChange={onClose}>
+      <SheetContent className="w-full sm:max-w-xl md:max-w-2xl flex flex-col">
+        <SheetHeader>
+          <div className="flex justify-between items-start">
+            <div className="flex-1">
+                {isEditing ? (
+                    <Input 
+                        value={currentTask.title} 
+                        onChange={(e) => handleFieldChange('title', e.target.value)}
+                        className="text-2xl font-bold border-none shadow-none focus-visible:ring-0 p-0"
+                    />
+                ) : (
+                    <SheetTitle className="text-2xl">{currentTask.title}</SheetTitle>
+                )}
+                <SheetDescription>
+                    En el proyecto <span className="font-semibold text-primary">{project.name}</span>
+                </SheetDescription>
+            </div>
+            {!isEditing && (
+                 <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
+                    <Edit className="mr-2 h-4 w-4"/>
+                    Editar
+                </Button>
+            )}
+          </div>
+        </SheetHeader>
+        
+        {isEditing ? renderEditMode() : renderViewMode()}
+
       </SheetContent>
     </Sheet>
   );

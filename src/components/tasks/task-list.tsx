@@ -24,6 +24,7 @@ import {
   Paperclip,
   Trash2,
   Edit,
+  Eye,
 } from 'lucide-react';
 import type { Task, Project, Subtask, SubtaskStatus } from '@/lib/types';
 import { getTasksForProject, createTask, updateTask, deleteTask } from '@/lib/firebase-services';
@@ -149,7 +150,7 @@ export function TaskList({ project }: TaskListProps) {
                             </Avatar>
                             )}
                             <div className="flex items-center gap-1 text-muted-foreground text-sm">
-                            <MessageSquare className="w-4 h-4" /> 0
+                            <MessageSquare className="w-4 h-4" /> {task.comments?.length || 0}
                             </div>
                             <div className="flex items-center gap-1 text-muted-foreground text-sm">
                             <Paperclip className="w-4 h-4" /> 0
@@ -161,7 +162,7 @@ export function TaskList({ project }: TaskListProps) {
                         </div>
                     </div>
                      <Button variant="ghost" size="icon" onClick={() => setSelectedTask(task)}>
-                        <Edit className="h-4 w-4" />
+                        <Eye className="h-4 w-4" />
                     </Button>
                     <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDeleteTask(task.id)}>
                         <Trash2 className="h-4 w-4" />

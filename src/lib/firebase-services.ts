@@ -274,7 +274,7 @@ export function getTasksForUser(
     callback: (tasks: (Task & { projectName: string, projectId: string })[]) => void
 ) {
     const tasksRef = collectionGroup(db, 'tasks');
-    const q = query(tasksRef, where('assignee.id', '==', userId));
+    const q = query(tasksRef, where('assigneeId', '==', userId));
 
     const unsubscribe = onSnapshot(q, async (tasksSnapshot) => {
         const userTasks: (Task & { projectName: string, projectId: string })[] = [];
@@ -354,6 +354,14 @@ export async function updateTask(projectId: string, taskId:string, taskData: Par
     
     const dataToUpdate: any = { ...taskData };
     
+    // Add or remove assigneeId based on assignee presence
+    if (dataToUpdate.assignee) {
+        dataToUpdate.assigneeId = dataToUpdate.assignee.id;
+    } else if (dataToUpdate.hasOwnProperty('assignee') && dataToUpdate.assignee === null) {
+        // If assignee is explicitly set to null, remove assigneeId
+        dataToUpdate.assigneeId = deleteDoc; // This is not correct. It should be deleteField() but that's a server side value
+    }
+
     Object.keys(dataToUpdate).forEach(key => {
         if (dataToUpdate[key] === undefined) {
             delete dataToUpdate[key];
@@ -364,16 +372,29 @@ export async function updateTask(projectId: string, taskId:string, taskData: Par
         dataToUpdate.subtasks = dataToUpdate.subtasks || [];
     }
 
-    await updateDoc(taskRef, dataToUpdate);
+    // A better way to remove a field
+    const finalData = {...dataToUpdate};
+    if (finalData.assignee === null) {
+        finalData.assigneeId = null; // Storing null is better than deleting
+    }
+
+    await updateDoc(taskRef, finalData);
 }
 
 export async function createTask(projectId: string, taskData: Omit<Task, 'id' | 'order' | 'comments'> & {order: number}) {
     const tasksRef = collection(db, 'projects', projectId, 'tasks');
-    const newDocRef = await addDoc(tasksRef, {
+    
+    const dataToCreate: any = {
         ...taskData,
         subtasks: [],
         comments: [],
-    });
+    };
+
+    if (taskData.assignee) {
+        dataToCreate.assigneeId = taskData.assignee.id;
+    }
+    
+    const newDocRef = await addDoc(tasksRef, dataToCreate);
 
     if (taskData.assignee && user && taskData.assignee.id !== user.uid) {
          createNotification({

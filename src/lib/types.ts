@@ -57,6 +57,7 @@ export interface Task {
   startDate?: Date;
   dueDate?: Date;
   assignee?: TeamMember | null;
+  assigneeId?: string | null;
   collaborators?: TeamMember[];
   tags?: TaskTag[];
   subtasks?: Subtask[];

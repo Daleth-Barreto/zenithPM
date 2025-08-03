@@ -116,7 +116,14 @@ export function TaskDetailsSheet({ task: initialTask, project, isOpen, onClose, 
 
   const handleLocalChange = (field: keyof Task, value: any) => {
     if (!task) return;
-    setTask(prevTask => prevTask ? { ...prevTask, [field]: value } : null);
+    const updatedTask = { ...task, [field]: value };
+    
+    // Also update assigneeId if assignee changes
+    if (field === 'assignee') {
+        updatedTask.assigneeId = value ? value.id : null;
+    }
+    
+    setTask(updatedTask);
   };
   
   const handleDebouncedSave = async (updatedTask: Task) => {

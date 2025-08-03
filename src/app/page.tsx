@@ -286,11 +286,11 @@ export default function LandingPage() {
                    <div className="flex items-center gap-4">
                     <Avatar>
                        <AvatarImage src="https://placehold.co/100x100/6A5ACD/FFFFFF" data-ai-hint="person tech" />
-                       <AvatarFallback>KV</AvatarFallback>
+                       <AvatarFallback>LP</AvatarFallback>
                     </Avatar>
                     <div>
-                      <p className="font-semibold">Kavexa</p>
-                      <p className="text-sm text-muted-foreground">Desarrollador Full-Stack</p>
+                      <p className="font-semibold">Líder de Proyecto</p>
+                      <p className="text-sm text-muted-foreground">Kavexa</p>
                     </div>
                   </div>
                 </CardContent>
@@ -345,8 +345,7 @@ export default function LandingPage() {
         <div className="container mx-auto flex justify-between items-center text-sm text-muted-foreground">
             <span>© {new Date().getFullYear()} ZenithPM. Todos los derechos reservados.</span>
             <div className="flex gap-4">
-              <Link href="#" className="hover:text-foreground">Términos</Link>
-              <Link href="#" className="hover:text-foreground">Privacidad</Link>
+              <Link href="/terms-and-privacy" className="hover:text-foreground">Términos y Privacidad</Link>
             </div>
         </div>
       </footer>

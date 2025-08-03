@@ -8,7 +8,7 @@ export function Logo(props: SVGProps<SVGSVGElement>) {
       fill="currentColor"
       {...props}
     >
-      <path d="M4 20h16L12 4z" />
+      <path d="M12 2L1 21h22L12 2zm0 5.66L18.34 20H5.66L12 7.66z" />
     </svg>
   );
 }

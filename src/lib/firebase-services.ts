@@ -275,21 +275,13 @@ export async function updateTaskOrder(projectId: string, taskId: string, order: 
 
 export async function updateTask(projectId: string, taskId:string, taskData: Partial<Omit<Task, 'id'>>) {
     const taskRef = doc(db, 'projects', projectId, 'tasks', taskId);
-
-    const dataToUpdate = { ...taskData };
-
-    for (const key in dataToUpdate) {
-        if (dataToUpdate[key as keyof typeof dataToUpdate] === undefined) {
-            delete dataToUpdate[key as keyof typeof dataToUpdate];
-        }
-    }
     
-    if ('dueDate' in dataToUpdate && dataToUpdate.dueDate === null) {
-      dataToUpdate.dueDate = null;
-    }
-
-    if (dataToUpdate.subtasks) {
-        dataToUpdate.subtasks = dataToUpdate.subtasks.map(subtask => ({ ...subtask }));
+    // Create a copy to avoid modifying the original object
+    const dataToUpdate = { ...taskData };
+    
+    // Ensure subtasks is an array, even if it's empty
+    if ('subtasks' in dataToUpdate && !dataToUpdate.subtasks) {
+        dataToUpdate.subtasks = [];
     }
 
     await updateDoc(taskRef, dataToUpdate);

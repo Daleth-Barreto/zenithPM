@@ -56,7 +56,6 @@ export interface Task {
   priority: TaskPriority;
   dueDate?: Date;
   assignee?: TeamMember | null;
-  assignedTeamId?: string | null;
   collaborators?: TeamMember[];
   tags?: TaskTag[];
   subtasks?: Subtask[];

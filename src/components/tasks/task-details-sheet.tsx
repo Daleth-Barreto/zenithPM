@@ -45,7 +45,7 @@ import { format, formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { TaskAssigner } from '../ai/task-assigner';
 import { useEffect, useState } from 'react';
-import { deleteTask, updateTask, addCommentToTask, getTeamsForProject, getTeamById, updateCommentInTask, deleteCommentFromTask, createNotification } from '@/lib/firebase-services';
+import { deleteTask, updateTask, addCommentToTask, updateCommentInTask, deleteCommentFromTask, createNotification } from '@/lib/firebase-services';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -94,37 +94,15 @@ export function TaskDetailsSheet({ task: initialTask, project, isOpen, onClose, 
   const [isDeleting, setIsDeleting] = useState(false);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
   const [newComment, setNewComment] = useState('');
-  const [projectTeams, setProjectTeams] = useState<Team[]>([]);
-  const [assignedTeam, setAssignedTeam] = useState<Team | null>(null);
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editingCommentText, setEditingCommentText] = useState('');
-  const [isLoadingTeams, setIsLoadingTeams] = useState(false);
 
   const { toast } = useToast();
   const { user } = useAuth();
-  
-  const canEdit = !!user && project.team.some(m => m.id === user.uid);
 
   useEffect(() => {
     setTask(initialTask);
-    if (initialTask) {
-        setIsLoadingTeams(true);
-        // Fetch details of the currently assigned team
-        if (initialTask.assignedTeamId) {
-            getTeamById(project.id, initialTask.assignedTeamId).then(setAssignedTeam);
-        } else {
-            setAssignedTeam(null);
-        }
-
-        // Fetch all teams associated with the project for the dropdown
-        const unsubscribe = getTeamsForProject(project.id, (teams) => {
-          setProjectTeams(teams);
-          setIsLoadingTeams(false);
-        });
-        
-        return () => unsubscribe();
-    }
-  }, [initialTask, project.id]);
+  }, [initialTask]);
 
 
   if (!task) return null;
@@ -137,19 +115,8 @@ export function TaskDetailsSheet({ task: initialTask, project, isOpen, onClose, 
 
   const handleAssigneeChange = (value: string) => {
     if (!isEditing) return;
-    if (value.startsWith('user-')) {
-        const memberId = value.replace('user-', '');
-        const assignee = project.team.find(m => m.id === memberId);
-        handleFieldChange('assignee', assignee || null);
-        handleFieldChange('assignedTeamId', null);
-    } else if (value.startsWith('team-')) {
-        const teamId = value.replace('team-', '');
-        handleFieldChange('assignedTeamId', teamId);
-        handleFieldChange('assignee', null);
-    } else {
-        handleFieldChange('assignee', null);
-        handleFieldChange('assignedTeamId', null);
-    }
+    const assignee = project.team.find(m => m.id === value);
+    handleFieldChange('assignee', assignee || null);
   }
   
   const handleSubtaskStatusChange = async (subtaskId: string, status: SubtaskStatus) => {
@@ -163,6 +130,8 @@ export function TaskDetailsSheet({ task: initialTask, project, isOpen, onClose, 
         handleFieldChange('subtasks', updatedSubtasks);
     } else {
         // If in view mode, update directly
+        const updatedTask = { ...task, subtasks: updatedSubtasks };
+        setTask(updatedTask); // Optimistic update
         await updateTask(project.id, task.id, { subtasks: updatedSubtasks });
         if(status === 'completed' && user){
             createNotification({
@@ -237,7 +206,7 @@ export function TaskDetailsSheet({ task: initialTask, project, isOpen, onClose, 
   }
 
   const handleSaveAndClose = async () => {
-    if (!task || !canEdit) return;
+    if (!task) return;
     setIsSaving(true);
     try {
         const { id, ...taskData } = task;
@@ -261,7 +230,7 @@ export function TaskDetailsSheet({ task: initialTask, project, isOpen, onClose, 
   }
 
   const handleDelete = async () => {
-    if(!task || !canEdit) return;
+    if(!task) return;
     setIsDeleting(true);
      try {
         await deleteTask(project.id, task.id);
@@ -314,13 +283,6 @@ export function TaskDetailsSheet({ task: initialTask, project, isOpen, onClose, 
                                     <AvatarFallback>{task.assignee.initials}</AvatarFallback>
                                 </Avatar>
                                 <span>{task.assignee.name}</span>
-                            </div>
-                        ) : assignedTeam ? (
-                            <div className="flex items-center gap-2">
-                                <Avatar className="h-6 w-6">
-                                    <AvatarFallback><Users className="h-4 w-4"/></AvatarFallback>
-                                </Avatar>
-                                <span>{assignedTeam.name}</span>
                             </div>
                         ) : <span className="text-muted-foreground italic">Sin asignar</span>}
                     </div>
@@ -525,34 +487,15 @@ export function TaskDetailsSheet({ task: initialTask, project, isOpen, onClose, 
                   <User className="inline-block mr-2 h-4 w-4" />
                   Asignado a
                 </Label>
-                <Select value={task?.assignee ? `user-${task.assignee.id}` : task?.assignedTeamId ? `team-${task.assignedTeamId}` : ''} onValueChange={handleAssigneeChange}>
+                <Select value={task?.assignee?.id} onValueChange={handleAssigneeChange}>
                   <SelectTrigger>
                     <SelectValue placeholder="Seleccionar asignado..." />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectGroup>
-                        <SelectLabel>Equipos</SelectLabel>
-                        {isLoadingTeams ? (
-                            <div className="p-2 text-center text-sm text-muted-foreground">Cargando equipos...</div>
-                        ) : projectTeams.length > 0 ? (
-                            projectTeams.map((team) => (
-                               <SelectItem key={team.id} value={`team-${team.id}`}>
-                                    <div className="flex items-center gap-2">
-                                    <Avatar className="h-6 w-6">
-                                        <AvatarFallback><Users className="h-4 w-4"/></AvatarFallback>
-                                    </Avatar>
-                                    <span>{team.name}</span>
-                                    </div>
-                               </SelectItem>
-                            ))
-                        ) : (
-                            <div className="px-8 py-2 text-center text-sm text-muted-foreground">No hay equipos en el proyecto.</div>
-                        )}
-                    </SelectGroup>
-                    <SelectGroup>
                         <SelectLabel>Miembros</SelectLabel>
                         {project.team.map((member) => (
-                        <SelectItem key={member.id} value={`user-${member.id}`}>
+                        <SelectItem key={member.id} value={member.id}>
                             <div className="flex items-center gap-2">
                             <Avatar className="h-6 w-6">
                                 <AvatarImage src={member.avatarUrl} />
@@ -654,7 +597,7 @@ export function TaskDetailsSheet({ task: initialTask, project, isOpen, onClose, 
         <SheetFooter className="pt-4 border-t">
           <AlertDialog>
             <AlertDialogTrigger asChild>
-               <Button variant="destructive" className="mr-auto" disabled={isDeleting || !canEdit}>
+               <Button variant="destructive" className="mr-auto" disabled={isDeleting}>
                 {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
                 Eliminar Tarea
               </Button>
@@ -678,7 +621,7 @@ export function TaskDetailsSheet({ task: initialTask, project, isOpen, onClose, 
           <Button variant="outline" onClick={handleCancelEdit}>
             Cancelar
           </Button>
-          <Button onClick={handleSaveAndClose} disabled={isSaving || !canEdit}>
+          <Button onClick={handleSaveAndClose} disabled={isSaving}>
             {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Guardar Cambios
           </Button>
@@ -702,7 +645,7 @@ export function TaskDetailsSheet({ task: initialTask, project, isOpen, onClose, 
                     En el proyecto <span className="font-semibold text-primary">{project.name}</span>
                 </SheetDescription>
             </div>
-            {!isEditing && canEdit && (
+            {!isEditing && (
                  <Button variant="outline" size="sm" onClick={handleStartEditing}>
                     <Edit className="mr-2 h-4 w-4"/>
                     Editar

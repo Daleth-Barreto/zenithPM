@@ -19,6 +19,7 @@ import {
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
+  useSidebar
 } from '@/components/ui/sidebar';
 import { Logo } from '@/components/logo';
 import { Separator } from '@/components/ui/separator';
@@ -30,11 +31,13 @@ import { generateAvatar } from '@/lib/avatar';
 import { useEffect, useState } from 'react';
 import type { Project } from '@/lib/types';
 import { getProjectsForUser } from '@/lib/firebase-services';
+import { cn } from '@/lib/utils';
 
 export function AppSidebar() {
   const pathname = usePathname();
   const { user } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
+  const { state: sidebarState } = useSidebar();
 
   useEffect(() => {
     if (user) {
@@ -57,17 +60,18 @@ export function AppSidebar() {
   }
 
   const userAvatar = user.photoURL || generateAvatar(user.displayName || user.email || 'User');
+  const isSidebarCollapsed = sidebarState === 'collapsed';
 
   return (
-    <Sidebar collapsible="icon" variant="sidebar">
+    <Sidebar>
+      <SidebarHeader>
+        <div className={cn("flex items-center gap-2", isSidebarCollapsed && "justify-center")}>
+          <Logo className="h-8 w-8 text-primary" />
+          <span className={cn("text-xl font-semibold", isSidebarCollapsed && "hidden")}>ZenithPM</span>
+        </div>
+      </SidebarHeader>
       <SidebarContent>
-        <SidebarHeader className="p-4">
-          <div className="flex items-center gap-2">
-            <Logo className="h-8 w-8 text-primary" />
-            <span className="text-xl font-semibold">ZenithPM</span>
-          </div>
-        </SidebarHeader>
-        <SidebarMenu className="flex-1 p-4">
+        <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
               asChild
@@ -76,20 +80,20 @@ export function AppSidebar() {
             >
               <Link href="/dashboard">
                 <LayoutDashboard />
-                <span>Panel</span>
+                <span className={cn(isSidebarCollapsed && "hidden")}>Panel</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
 
           <Collapsible defaultOpen={true} data-tour="sidebar-projects">
-            <CollapsibleTrigger asChild className="w-full group/menu-item">
-              <SidebarMenuButton className="justify-between group-data-[collapsible=icon]:justify-center">
-                <div className="flex items-center gap-2">
-                  <FolderKanban />
-                  <span>Proyectos</span>
-                </div>
-                <ChevronDown className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180 group-data-[collapsible=icon]:hidden" />
-              </SidebarMenuButton>
+            <CollapsibleTrigger asChild>
+                <SidebarMenuButton className="justify-between group-data-[collapsible=icon]:justify-center">
+                    <div className="flex items-center gap-2">
+                        <FolderKanban />
+                        <span className={cn(isSidebarCollapsed && "hidden")}>Proyectos</span>
+                    </div>
+                    <ChevronDown className={cn("h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180", isSidebarCollapsed && "hidden")} />
+                </SidebarMenuButton>
             </CollapsibleTrigger>
             <CollapsibleContent>
               <SidebarMenuSub>
@@ -118,27 +122,25 @@ export function AppSidebar() {
             >
               <Link href="/profile">
                 <User />
-                <span>Perfil</span>
+                <span className={cn(isSidebarCollapsed && "hidden")}>Perfil</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
+      </SidebarContent>
 
-        <Separator className="my-2" />
-
-        <SidebarFooter className="p-4">
-          <div className="flex items-center gap-3">
+      <SidebarFooter>
+        <div className={cn("flex items-center gap-3", isSidebarCollapsed && "justify-center")}>
             <Avatar className="h-10 w-10">
               <AvatarImage src={userAvatar} />
               <AvatarFallback>{getInitials(user.displayName)}</AvatarFallback>
             </Avatar>
-            <div className="flex flex-col group-data-[collapsible=icon]:hidden">
+            <div className={cn("flex flex-col", isSidebarCollapsed && "hidden")}>
               <span className="font-semibold text-sm">{user.displayName || 'Usuario'}</span>
               <span className="text-xs text-muted-foreground">{user.email}</span>
             </div>
           </div>
-        </SidebarFooter>
-      </SidebarContent>
+      </SidebarFooter>
     </Sidebar>
   );
 }

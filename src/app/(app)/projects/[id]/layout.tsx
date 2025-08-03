@@ -69,7 +69,7 @@ export default function ProjectLayout({
     <ProjectContext.Provider value={project}>
       <div className="flex flex-col h-full">
         <ProjectHeader project={project} />
-        <div className="flex-1 overflow-y-auto pt-6">{children}</div>
+        <div className="flex-1 overflow-y-auto">{children}</div>
       </div>
     </ProjectContext.Provider>
   );

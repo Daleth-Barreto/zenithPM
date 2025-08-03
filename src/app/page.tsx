@@ -182,7 +182,7 @@ export default function LandingPage() {
     <>
       <div className="flex flex-col min-h-screen bg-background text-foreground font-body antialiased">
         <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="container flex h-14 items-center justify-between">
+          <div className="container flex h-14 items-center justify-between px-4 md:px-6">
             <div className="flex items-center gap-2">
               <Logo className="h-8 w-8 text-primary" />
               <span className="text-xl font-bold">ZenithPM</span>
@@ -200,7 +200,7 @@ export default function LandingPage() {
 
         <main className="flex-1">
           {/* Hero Section */}
-          <section className="container mx-auto py-20 md:py-32 text-center">
+          <section className="container mx-auto py-16 md:py-32 text-center px-4 md:px-6">
             <div className="max-w-4xl mx-auto">
               <h1 className="text-4xl md:text-6xl font-bold tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-primary via-accent to-primary-foreground">
                 Eleva tu Productividad a la Cima
@@ -214,14 +214,14 @@ export default function LandingPage() {
                 </Link>
               </Button>
             </div>
-            <div className="relative mt-16 h-64 md:h-96 -mx-4">
+            <div className="relative mt-12 md:mt-16 h-48 md:h-96 -mx-4">
               <ProjectManagementIllustration />
             </div>
           </section>
 
           {/* Features Section */}
-          <section id="features" className="py-20 px-4 md:px-8 bg-muted/50">
-            <div className="container mx-auto">
+          <section id="features" className="py-16 md:py-20 bg-muted/50">
+            <div className="container mx-auto px-4 md:px-6">
               <div className="text-center mb-12">
                 <h2 className="text-3xl md:text-4xl font-bold">Todo lo que necesitas para triunfar</h2>
                 <p className="text-muted-foreground mt-4 max-w-2xl mx-auto">
@@ -261,8 +261,8 @@ export default function LandingPage() {
           </section>
         
           {/* Pricing Section */}
-          <section id="pricing" className="py-20 px-4 md:px-8">
-            <div className="container mx-auto">
+          <section id="pricing" className="py-16 md:py-20">
+            <div className="container mx-auto px-4 md:px-6">
                 <div className="text-center mb-12">
                     <h2 className="text-3xl md:text-4xl font-bold">Precios simples y transparentes</h2>
                     <p className="text-muted-foreground mt-4 max-w-2xl mx-auto">
@@ -314,15 +314,15 @@ export default function LandingPage() {
           </section>
 
           {/* How It Works Section */}
-          <section className="py-20 px-4 md:px-8 bg-muted/50">
-            <div className="container mx-auto">
+          <section className="py-16 md:py-20 bg-muted/50">
+            <div className="container mx-auto px-4 md:px-6">
               <div className="text-center mb-16">
                 <h2 className="text-3xl md:text-4xl font-bold">Comienza en Minutos</h2>
                 <p className="text-muted-foreground mt-4 max-w-2xl mx-auto">
                   Alcanzar tus metas nunca ha sido tan fácil. Sigue estos simples pasos.
                 </p>
               </div>
-              <div className="relative grid grid-cols-1 md:grid-cols-3 gap-12">
+              <div className="relative grid grid-cols-1 md:grid-cols-3 gap-y-20 md:gap-x-12">
                 <div className="absolute top-1/2 left-0 w-full h-px bg-border -translate-y-1/2 hidden md:block" />
                 <div className="relative text-center">
                   <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-16 h-16 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-2xl font-bold border-4 border-background">1</div>
@@ -353,8 +353,8 @@ export default function LandingPage() {
           </section>
           
           {/* FAQ Section */}
-          <section className="py-20 px-4 md:px-8 bg-muted/50">
-            <div className="container mx-auto">
+          <section className="py-16 md:py-20 bg-muted/50">
+            <div className="container mx-auto px-4 md:px-6">
               <div className="text-center mb-12">
                 <h2 className="text-3xl md:text-4xl font-bold">Preguntas Frecuentes</h2>
                 <p className="text-muted-foreground mt-4 max-w-2xl mx-auto">
@@ -399,8 +399,8 @@ export default function LandingPage() {
           </section>
 
           {/* CTA Section */}
-          <section className="py-20 px-4 md:px-8">
-            <div className="container mx-auto text-center">
+          <section className="py-16 md:py-20">
+            <div className="container mx-auto text-center px-4 md:px-6">
               <h2 className="text-3xl md:text-4xl font-bold">¿Listo para alcanzar tu cima?</h2>
               <p className="text-muted-foreground mt-4 max-w-xl mx-auto">
                 Únete a miles de equipos que ya están logrando más con menos estrés. Tu próximo gran proyecto comienza aquí.
@@ -415,7 +415,7 @@ export default function LandingPage() {
         </main>
 
         <footer className="p-6 border-t bg-muted/50">
-          <div className="container mx-auto flex justify-between items-center text-sm text-muted-foreground">
+          <div className="container mx-auto flex flex-col sm:flex-row justify-between items-center text-sm text-muted-foreground gap-4">
               <span>© {new Date().getFullYear()} ZenithPM. Todos los derechos reservados.</span>
               <div className="flex gap-4">
                 <Link href="/terms-and-privacy" className="hover:text-foreground">Términos y Privacidad</Link>

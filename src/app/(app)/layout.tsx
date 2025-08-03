@@ -1,7 +1,7 @@
 
 'use client';
 
-import { SidebarProvider, SidebarInset, Sidebar } from '@/components/ui/sidebar';
+import { SidebarProvider, Sidebar, SidebarInset } from '@/components/ui/sidebar';
 import { AppHeader } from '@/components/layout/app-header';
 import { AppSidebar } from '@/components/layout/app-sidebar';
 import { useAuth } from '@/contexts/auth-context';
@@ -45,12 +45,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <SidebarProvider>
-        <AppSidebar />
-        <div className="flex flex-col flex-1">
-            <AppHeader />
-            <main className="flex-1 overflow-y-auto bg-background">{children}</main>
-        </div>
-        <AppTour isTourOpen={isTourOpen} onTourComplete={handleTourComplete} />
+      <AppSidebar />
+      <div className="flex flex-col flex-1">
+        <AppHeader />
+        <main className="flex-1 overflow-y-auto bg-background">{children}</main>
+      </div>
+      <AppTour isTourOpen={isTourOpen} onTourComplete={handleTourComplete} />
     </SidebarProvider>
   );
 }

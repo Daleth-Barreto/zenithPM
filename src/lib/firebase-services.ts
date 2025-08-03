@@ -51,9 +51,7 @@ export async function createProject(
   };
 
   const projectColor = getRandomColor();
-  const patternWord = encodeURIComponent(projectData.name);
-  const imageUrl = `https://quantumpatternsapi.onrender.com/patterns/generate?width=600&height=400&pattern_type=word&word=${patternWord}`;
-
+  const imageUrl = ''; // Removed image generation
 
   const newProjectRef = await addDoc(collection(db, 'projects'), {
     ...projectData,

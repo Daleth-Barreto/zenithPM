@@ -1,4 +1,3 @@
-import Image from 'next/image';
 import Link from 'next/link';
 import {
   Card,
@@ -20,20 +19,11 @@ interface ProjectCardProps {
 export function ProjectCard({ project }: ProjectCardProps) {
   return (
     <Card className="flex flex-col h-full overflow-hidden transition-transform transform hover:-translate-y-1 hover:shadow-xl">
-      <CardHeader className="p-0">
-        <div className="relative h-40 w-full" style={{ backgroundColor: project.color }}>
-          <Image
-            src={project.imageUrl}
-            alt={project.name}
-            layout="fill"
-            objectFit="cover"
-            data-ai-hint="abstract background"
-          />
-        </div>
+      <CardHeader>
+        <CardTitle className="text-xl">{project.name}</CardTitle>
+        <CardDescription className="line-clamp-2 h-10">{project.description}</CardDescription>
       </CardHeader>
-      <CardContent className="p-6 flex-grow">
-        <CardTitle className="mb-2 text-xl">{project.name}</CardTitle>
-        <CardDescription className="line-clamp-2">{project.description}</CardDescription>
+      <CardContent className="flex-grow">
         <div className="mt-4">
           <div className="flex justify-between items-center mb-2">
             <span className="text-sm text-muted-foreground">Progreso</span>
@@ -42,7 +32,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
           <Progress value={project.progress} aria-label={`${project.progress}% completo`} />
         </div>
       </CardContent>
-      <CardFooter className="p-6 pt-0 flex justify-between items-center">
+      <CardFooter className="flex justify-between items-center">
         <div className="flex -space-x-2">
           {project.team.slice(0, 4).map((member) => (
             <Avatar key={member.id} className="border-2 border-card">

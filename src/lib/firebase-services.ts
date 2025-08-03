@@ -37,7 +37,6 @@ function getRandomColor() {
 // --- USERS ---
 export async function checkUserExistsByEmail(email: string): Promise<boolean> {
   const usersRef = collection(db, 'users');
-  // Always query with lowercase email
   const q = query(usersRef, where('email', '==', email.toLowerCase()), limit(1));
   const querySnapshot = await getDocs(q);
   return !querySnapshot.empty;
@@ -62,7 +61,7 @@ export async function createProject(
   };
 
   const projectColor = getRandomColor();
-  const imageUrl = ''; // Removed image generation
+  const imageUrl = '';
 
   const newProjectRef = await addDoc(collection(db, 'projects'), {
     ...projectData,
@@ -72,7 +71,7 @@ export async function createProject(
     progress: 0,
     team: [owner],
     color: projectColor,
-    imageUrl: imageUrl,
+    imageUrl: imageUrl, 
     associatedTeamIds: [],
   });
 
@@ -93,53 +92,47 @@ export function getProjectsForUser(
   callback: (projects: Project[]) => void
 ) {
   const projectsRef = collection(db, 'projects');
-  const teamsRef = collection(db, 'teams');
-  
-  // First, get all teams the user is a part of
-  const teamsQuery = query(teamsRef, where('memberIds', 'array-contains', userId));
+  let projectsMap = new Map<string, Project>();
 
-  return onSnapshot(teamsQuery, (teamsSnapshot) => {
+  const updateCallback = () => {
+    callback(Array.from(projectsMap.values()).sort((a,b) => a.name.localeCompare(b.name)));
+  };
+
+  // Listener for projects where user is a direct member
+  const directMembershipQuery = query(projectsRef, where('teamIds', 'array-contains', userId));
+  const unsubscribeDirect = onSnapshot(directMembershipQuery, (snapshot) => {
+    snapshot.docs.forEach(doc => {
+      projectsMap.set(doc.id, { id: doc.id, ...doc.data() } as Project);
+    });
+    updateCallback();
+  });
+
+  // Listener for teams and their associated projects
+  const teamsRef = collection(db, 'teams');
+  const teamsQuery = query(teamsRef, where('memberIds', 'array-contains', userId));
+  const unsubscribeTeams = onSnapshot(teamsQuery, (teamsSnapshot) => {
     const userTeamIds = teamsSnapshot.docs.map(doc => doc.id);
     
-    // We create an array of listeners, one for direct membership and one for team membership
-    const listeners: (()=>void)[] = [];
-    const projectsMap = new Map<string, Project>();
-
-    const updateProjects = () => {
-      const allProjects = Array.from(projectsMap.values());
-      callback(allProjects.sort((a,b) => a.name.localeCompare(b.name)));
-    }
-    
-    // Query for projects where user is a direct member
-    const directMembershipQuery = query(projectsRef, where('teamIds', 'array-contains', userId));
-    const unsubDirect = onSnapshot(directMembershipQuery, (snapshot) => {
-      snapshot.docs.forEach(doc => {
-        const data = doc.data();
-        projectsMap.set(doc.id, { id: doc.id, ...data, tasks: [] } as Project);
-      });
-      updateProjects();
-    });
-    listeners.push(unsubDirect);
-    
-    // Query for projects associated with any of the user's teams
     if (userTeamIds.length > 0) {
       const teamMembershipQuery = query(projectsRef, where('associatedTeamIds', 'array-contains-any', userTeamIds));
-      const unsubTeam = onSnapshot(teamMembershipQuery, (snapshot) => {
-        snapshot.docs.forEach(doc => {
-            const data = doc.data();
-            projectsMap.set(doc.id, { id: doc.id, ...data, tasks: [] } as Project);
+      const unsubscribeTeamProjects = onSnapshot(teamMembershipQuery, (projectSnapshot) => {
+        projectSnapshot.docs.forEach(doc => {
+          projectsMap.set(doc.id, { id: doc.id, ...doc.data() } as Project);
         });
-        updateProjects();
+        updateCallback();
       });
-      listeners.push(unsubTeam);
+      // This will be unsubscribed with the main function
+      return () => unsubscribeTeamProjects();
     }
-
-    return () => listeners.forEach(unsub => unsub());
-
-  }, (error) => {
-    console.error("Error fetching user teams: ", error);
-    callback([]);
+    // if user has no teams, still update with direct projects
+    updateCallback();
+    return () => {};
   });
+  
+  return () => {
+    unsubscribeDirect();
+    unsubscribeTeams();
+  };
 }
 
 
@@ -152,7 +145,6 @@ export function getProjectById(projectId: string, callback: (project: Project | 
             callback({
                 id: projectSnap.id,
                 ...data,
-                tasks: [],
             } as Project);
         } else {
             callback(null);
@@ -218,7 +210,7 @@ export async function updateTask(projectId: string, taskId:string, taskData: Par
         }
     }
     
-    if ('dueDate' in dataToUpdate && dataToUpdate.dueDate === undefined) {
+    if ('dueDate' in dataToUpdate && dataToUpdate.dueDate === null) {
       dataToUpdate.dueDate = null;
     }
 
@@ -402,6 +394,9 @@ export function onTeamUpdate(teamId: string, callback: (team: Team | null) => vo
     } else {
       callback(null);
     }
+  }, (error) => {
+    console.error("Error fetching team in real-time:", error);
+    callback(null);
   });
 }
 
@@ -562,3 +557,5 @@ export async function respondToInvitation(invitationId: string, accepted: boolea
     });
   });
 }
+
+    

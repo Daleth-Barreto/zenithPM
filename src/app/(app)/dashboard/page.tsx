@@ -26,7 +26,8 @@ export default function DashboardPage() {
   }, [user]);
 
   const onProjectCreated = (newProject: Project) => {
-    setProjects(prevProjects => [...prevProjects, newProject]);
+    // No need to manually update the state here.
+    // The onSnapshot listener from getProjectsForUser will handle it.
   };
 
   return (

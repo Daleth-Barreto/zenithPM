@@ -66,7 +66,7 @@ export function AppSidebar() {
           </SidebarMenuItem>
 
           <Collapsible defaultOpen={true}>
-            <CollapsibleTrigger className="w-full group/menu-item">
+            <CollapsibleTrigger asChild className="w-full group/menu-item">
               <SidebarMenuButton className="justify-between group-data-[collapsible=icon]:justify-center">
                 <div className="flex items-center gap-2">
                   <FolderKanban />

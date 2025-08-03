@@ -92,6 +92,8 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
   const { user } = useAuth();
   const debouncedSaveRef = useRef<NodeJS.Timeout>();
 
+  const canEdit = user && project.team.find(m => m.id === user.uid)?.role === 'Admin';
+
   useEffect(() => {
     // Reset editing state when a new task is passed in
     if (task) {
@@ -101,9 +103,10 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
   }, [task]);
 
   const saveTask = useCallback(async (taskToSave: Task) => {
+    if (!canEdit) return;
     const { id, ...taskData } = taskToSave;
     await updateTask(project.id, id, taskData);
-  }, [project.id]);
+  }, [project.id, canEdit]);
   
   const handleDebouncedSave = useCallback((updatedTask: Task) => {
     if (debouncedSaveRef.current) {
@@ -164,7 +167,7 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
   }
 
   const handleSaveAndClose = async () => {
-    if (!currentTask) return;
+    if (!currentTask || !canEdit) return;
     if (debouncedSaveRef.current) {
       clearTimeout(debouncedSaveRef.current);
     }
@@ -190,7 +193,7 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
   }
 
   const handleDelete = async () => {
-    if(!currentTask) return;
+    if(!currentTask || !canEdit) return;
     setIsDeleting(true);
      try {
         await deleteTask(project.id, currentTask.id);
@@ -246,7 +249,7 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
                      <div className="flex items-center gap-2 text-sm">
                         <AlertCircle className="h-4 w-4 text-muted-foreground" />
                         <span className="font-medium">Prioridad:</span>
-                        <Badge variant="outline">{priorityMap[currentTask.priority]}</Badge>
+                        <Badge variant="outline" className="capitalize">{currentTask.priority}</Badge>
                     </div>
 
                     <div className="flex items-center gap-2 text-sm">
@@ -516,7 +519,7 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
         <SheetFooter className="pt-4 border-t">
           <AlertDialog>
             <AlertDialogTrigger asChild>
-               <Button variant="destructive" className="mr-auto" disabled={isDeleting}>
+               <Button variant="destructive" className="mr-auto" disabled={isDeleting || !canEdit}>
                 {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
                 Eliminar Tarea
               </Button>
@@ -540,7 +543,7 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
           <Button variant="outline" onClick={handleCancelEdit}>
             Cancelar
           </Button>
-          <Button onClick={handleSaveAndClose} disabled={isSaving}>
+          <Button onClick={handleSaveAndClose} disabled={isSaving || !canEdit}>
             {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Guardar Cambios
           </Button>
@@ -567,7 +570,7 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
                     En el proyecto <span className="font-semibold text-primary">{project.name}</span>
                 </SheetDescription>
             </div>
-            {!isEditing && (
+            {!isEditing && canEdit && (
                  <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
                     <Edit className="mr-2 h-4 w-4"/>
                     Editar

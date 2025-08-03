@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -131,14 +132,6 @@ function ProjectManagementIllustration(props: React.SVGProps<SVGSVGElement>) {
 export default function LandingPage() {
   return (
     <>
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
-          rel="stylesheet"
-        ></link>
-      </head>
       <div className="flex flex-col min-h-screen bg-background text-foreground font-body antialiased">
         <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
           <div className="container flex h-14 items-center justify-between">

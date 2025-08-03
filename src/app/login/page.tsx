@@ -70,6 +70,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!authLoading && user) {
+      localStorage.setItem('zenith_tour_completed', 'true');
       router.push('/dashboard');
     }
   }, [user, authLoading, router]);

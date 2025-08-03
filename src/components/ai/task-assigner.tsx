@@ -32,8 +32,12 @@ export function TaskAssigner({ task, project }: TaskAssignerProps) {
         })),
       });
       setSuggestion({ person: result.suggestedPerson, reason: result.reason });
-    } catch (e) {
-      setError('No se pudo obtener la sugerencia. Por favor, inténtalo de nuevo.');
+    } catch (e: any) {
+      if (e.message && e.message.includes('503 Service Unavailable')) {
+        setError('El servicio de IA está ocupado. Por favor, inténtalo de nuevo en unos momentos.');
+      } else {
+        setError('No se pudo obtener la sugerencia. Por favor, inténtalo de nuevo.');
+      }
       console.error(e);
     } finally {
       setIsLoading(false);

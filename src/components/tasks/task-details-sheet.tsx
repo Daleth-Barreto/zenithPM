@@ -85,8 +85,8 @@ const statusMap: Record<TaskStatus, string> = {
     done: 'Hecho'
 }
 
-export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: TaskDetailsSheetProps) {
-  const [editableTask, setEditableTask] = useState<Task | null>(null);
+export function TaskDetailsSheet({ task: initialTask, project, isOpen, onClose, onUpdate }: TaskDetailsSheetProps) {
+  const [task, setTask] = useState(initialTask);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -103,6 +103,10 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
   const canEdit = user && project.team.find(m => m.id === user.uid)?.role === 'Admin';
 
   useEffect(() => {
+    setTask(initialTask);
+  }, [initialTask]);
+
+  useEffect(() => {
     if (task && task.assignedTeamId) {
       getTeamById(task.assignedTeamId).then(setAssignedTeam);
     } else {
@@ -111,7 +115,6 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
   }, [task]);
 
   useEffect(() => {
-    // Fetch full team objects based on associatedTeamIds
     if (project.associatedTeamIds && project.associatedTeamIds.length > 0) {
       Promise.all(project.associatedTeamIds.map(id => getTeamById(id)))
         .then(teams => {
@@ -126,11 +129,9 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
   if (!task) return null;
 
   const handleFieldChange = (field: keyof Task, value: any) => {
-    if (!isEditing || !editableTask) return;
-    const updatedTask = { ...editableTask, [field]: value };
-    setEditableTask(updatedTask);
-    // This is important to keep the editable state consistent with the changes
-    onUpdate(updatedTask);
+    if (!isEditing || !task) return;
+    const updatedTask = { ...task, [field]: value };
+    setTask(updatedTask);
   }
 
   const handleAssigneeChange = (value: string) => {
@@ -151,28 +152,28 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
   }
   
   const handleSubtaskStatusChange = (subtaskId: string, status: SubtaskStatus) => {
-    if (!isEditing || !editableTask) return;
-    const updatedSubtasks = editableTask.subtasks?.map(st =>
+    if (!isEditing || !task) return;
+    const updatedSubtasks = task.subtasks?.map(st =>
       st.id === subtaskId ? { ...st, status } : st
     );
     handleFieldChange('subtasks', updatedSubtasks);
   };
   
   const handleAddSubtask = () => {
-    if (!newSubtaskTitle.trim() || !isEditing || !editableTask) return;
+    if (!newSubtaskTitle.trim() || !isEditing || !task) return;
     const newSubtask: Subtask = {
       id: new Date().getTime().toString(),
       title: newSubtaskTitle,
       status: 'pending',
     };
-    const updatedSubtasks = [...(editableTask.subtasks || []), newSubtask];
+    const updatedSubtasks = [...(task.subtasks || []), newSubtask];
     handleFieldChange('subtasks', updatedSubtasks);
     setNewSubtaskTitle('');
   };
   
   const handleDeleteSubtask = (subtaskId: string) => {
-    if (!isEditing || !editableTask) return;
-    const updatedSubtasks = editableTask.subtasks?.filter(st => st.id !== subtaskId);
+    if (!isEditing || !task) return;
+    const updatedSubtasks = task.subtasks?.filter(st => st.id !== subtaskId);
     handleFieldChange('subtasks', updatedSubtasks);
   }
 
@@ -183,10 +184,11 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
         text: newComment,
         authorId: user.uid,
         authorName: user.displayName || 'Usuario',
+        authorAvatarUrl: user.photoURL || undefined,
     };
-
-    if (user.photoURL) {
-      commentData.authorAvatarUrl = user.photoURL;
+    
+    if (commentData.authorAvatarUrl === undefined) {
+      delete commentData.authorAvatarUrl;
     }
 
     await addCommentToTask(project.id, task.id, commentData);
@@ -227,22 +229,20 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
   }
 
   const handleStartEditing = () => {
-    setEditableTask(JSON.parse(JSON.stringify(task))); // Deep copy
     setIsEditing(true);
   }
 
   const handleSaveAndClose = async () => {
-    if (!editableTask || !canEdit) return;
+    if (!task || !canEdit) return;
     setIsSaving(true);
     try {
-        const { id, ...taskData } = editableTask;
+        const { id, ...taskData } = task;
         await updateTask(project.id, id, taskData);
-        onUpdate(editableTask); 
-        setIsEditing(false); // Go back to view mode
-        setEditableTask(null);
+        onUpdate(task); 
+        setIsEditing(false);
         toast({
             title: 'Tarea Actualizada',
-            description: `Se han guardado los cambios para "${editableTask.title}".`
+            description: `Se han guardado los cambios para "${task.title}".`
         })
     } catch (error) {
         console.error("Error saving task:", error);
@@ -279,7 +279,7 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
   }
   
   const handleCancelEdit = () => {
-      setEditableTask(null);
+      setTask(initialTask); // Revert changes
       setIsEditing(false);
   }
 
@@ -459,7 +459,7 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
                 <Label htmlFor="title">Título de la Tarea</Label>
                 <Input 
                     id="title"
-                    value={editableTask?.title || ''} 
+                    value={task?.title || ''} 
                     onChange={(e) => handleFieldChange('title', e.target.value)}
                     className="text-lg font-semibold"
                 />
@@ -468,7 +468,7 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
               <Label htmlFor="description">Descripción</Label>
               <Textarea 
                 id="description" 
-                value={editableTask?.description || ''}
+                value={task?.description || ''}
                 onChange={(e) => handleFieldChange('description', e.target.value)} 
                 rows={5} 
                 placeholder="Añade una descripción más detallada..."
@@ -480,7 +480,7 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
             <div className="space-y-4">
                 <Label>Subtareas</Label>
                 <div className="space-y-2">
-                    {editableTask?.subtasks?.map(subtask => (
+                    {task?.subtasks?.map(subtask => (
                         <div key={subtask.id} className="flex items-center gap-3 group">
                         <Checkbox
                             id={`subtask-sheet-${subtask.id}`}
@@ -521,7 +521,7 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
                   <User className="inline-block mr-2 h-4 w-4" />
                   Asignado a
                 </Label>
-                <Select value={editableTask?.assignee ? `user-${editableTask.assignee.id}` : editableTask?.assignedTeamId ? `team-${editableTask.assignedTeamId}` : ''} onValueChange={handleAssigneeChange}>
+                <Select value={task?.assignee ? `user-${task.assignee.id}` : task?.assignedTeamId ? `team-${task.assignedTeamId}` : ''} onValueChange={handleAssigneeChange}>
                   <SelectTrigger>
                     <SelectValue placeholder="Seleccionar asignado..." />
                   </SelectTrigger>
@@ -562,7 +562,7 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
                   <AlertCircle className="inline-block mr-2 h-4 w-4" />
                   Prioridad
                 </Label>
-                <Select value={editableTask?.priority} onValueChange={(v: TaskPriority) => handleFieldChange('priority', v)}>
+                <Select value={task?.priority} onValueChange={(v: TaskPriority) => handleFieldChange('priority', v)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Establecer prioridad..." />
                   </SelectTrigger>
@@ -583,14 +583,14 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button variant="outline" className="w-full justify-start text-left font-normal">
-                      {editableTask?.dueDate ? format(new Date(editableTask.dueDate), 'PPP', { locale: es }) : 'Establecer fecha...'}
+                      {task?.dueDate ? format(new Date(task.dueDate), 'PPP', { locale: es }) : 'Establecer fecha...'}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
                     <Calendar 
                       mode="single" 
                       locale={es}
-                      selected={editableTask?.dueDate ? new Date(editableTask.dueDate) : undefined}
+                      selected={task?.dueDate ? new Date(task.dueDate) : undefined}
                       onSelect={(date) => handleFieldChange('dueDate', date)}
                     />
                   </PopoverContent>
@@ -602,7 +602,7 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
                   <Tag className="inline-block mr-2 h-4 w-4" />
                   Estado
                 </Label>
-                <Select value={editableTask?.status} onValueChange={(v: TaskStatus) => handleFieldChange('status', v)}>
+                <Select value={task?.status} onValueChange={(v: TaskStatus) => handleFieldChange('status', v)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Establecer estado..." />
                   </SelectTrigger>
@@ -621,7 +621,7 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
                   Colaboradores
                 </Label>
                 <div className="flex flex-wrap gap-2">
-                  {editableTask?.collaborators?.map(c => (
+                  {task?.collaborators?.map(c => (
                      <div key={c.id} className="flex items-center gap-2 bg-muted p-1 rounded-md">
                       <Avatar className="h-6 w-6">
                         <AvatarImage src={c.avatarUrl} />
@@ -638,7 +638,7 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
             </div>
             
             <Separator />
-            <TaskAssigner task={editableTask!} project={project} />
+            <TaskAssigner task={task!} project={project} />
           </div>
         </div>
         <SheetFooter className="pt-4 border-t">
@@ -677,12 +677,19 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
   )
 
   return (
-    <Sheet open={isOpen} onOpenChange={onClose}>
+    <Sheet open={isOpen} onOpenChange={(open) => {
+      if (!open) {
+        setIsEditing(false); // Reset edit mode on close
+        onClose();
+      } else {
+        onClose(); // Should not be called, but for safety
+      }
+    }}>
       <SheetContent className="w-full sm:max-w-xl md:max-w-2xl flex flex-col">
         <SheetHeader>
           <div className="flex justify-between items-start">
             <div className="flex-1">
-                <SheetTitle className="text-2xl">{task?.title}</SheetTitle>
+                 <SheetTitle className="text-2xl pr-10">{task?.title}</SheetTitle>
                 <SheetDescription>
                     En el proyecto <span className="font-semibold text-primary">{project.name}</span>
                 </SheetDescription>
@@ -702,6 +709,3 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
     </Sheet>
   );
 }
-
-    
-

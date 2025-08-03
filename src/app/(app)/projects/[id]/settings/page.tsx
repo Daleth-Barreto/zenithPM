@@ -1,4 +1,7 @@
-import { getProjectById } from '@/lib/mock-data';
+
+'use client';
+
+import { getProjectById } from '@/lib/firebase-services';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -8,9 +11,51 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Trash2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import { useParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import type { Project } from '@/lib/types';
+import { Skeleton } from '@/components/ui/skeleton';
 
-export default function ProjectSettingsPage({ params }: { params: { id: string } }) {
-  const project = getProjectById(params.id);
+export default function ProjectSettingsPage() {
+  const params = useParams();
+  const projectId = params.id as string;
+  const [project, setProject] = useState<Project | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (projectId) {
+      getProjectById(projectId).then(p => {
+        if(p) {
+          setProject(p)
+        }
+        setLoading(false)
+      })
+    }
+  }, [projectId]);
+
+
+  if (loading) {
+    return (
+       <div className="p-4 md:p-8 space-y-8">
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-7 w-48" />
+            <Skeleton className="h-4 w-72" />
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+               <Skeleton className="h-4 w-24" />
+               <Skeleton className="h-10 w-full" />
+            </div>
+             <div className="space-y-2">
+               <Skeleton className="h-4 w-32" />
+               <Skeleton className="h-20 w-full" />
+            </div>
+          </CardContent>
+        </Card>
+       </div>
+    )
+  }
 
   if (!project) {
     return <div>Proyecto no encontrado</div>;

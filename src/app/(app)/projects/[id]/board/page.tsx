@@ -6,22 +6,25 @@ import { getProjectById } from '@/lib/firebase-services';
 import { useEffect, useState } from 'react';
 import type { Project } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useParams } from 'next/navigation';
 
 
-export default function ProjectBoardPage({ params }: { params: { id: string } }) {
+export default function ProjectBoardPage() {
+  const params = useParams();
+  const projectId = params.id as string;
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (params.id) {
-        getProjectById(params.id).then(p => {
+    if (projectId) {
+        getProjectById(projectId).then(p => {
             if (p) {
                 setProject(p);
             }
             setLoading(false);
         });
     }
-  }, [params.id]);
+  }, [projectId]);
 
 
   if (loading) {

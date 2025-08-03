@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -5,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { Project } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { ScrollArea } from '../ui/scroll-area';
 
 interface ProjectHeaderProps {
   project: Project;
@@ -34,15 +36,17 @@ export function ProjectHeader({ project }: ProjectHeaderProps) {
         <h1 className="text-3xl font-bold tracking-tight">{project.name}</h1>
         <p className="text-muted-foreground mt-2">{project.description}</p>
       </div>
-      <Tabs value={getActiveTab()} className="px-4 md:px-8">
-        <TabsList>
-          {tabs.map((tab) => (
-            <TabsTrigger value={tab.id} key={tab.id} asChild>
-              <Link href={tab.href}>{tab.label}</Link>
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
+       <ScrollArea className="w-full whitespace-nowrap">
+        <Tabs value={getActiveTab()} className="px-4 md:px-8 pb-px">
+          <TabsList>
+            {tabs.map((tab) => (
+              <TabsTrigger value={tab.id} key={tab.id} asChild>
+                <Link href={tab.href}>{tab.label}</Link>
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+      </ScrollArea>
     </div>
   );
 }

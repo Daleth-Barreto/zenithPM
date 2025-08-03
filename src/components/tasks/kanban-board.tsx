@@ -155,7 +155,7 @@ export function KanbanBoard({ project }: KanbanBoardProps) {
             const column = columns[columnId];
             if (!column) return null;
             return (
-              <div key={columnId} className="flex flex-col w-80 flex-shrink-0">
+              <div key={columnId} className="flex flex-col w-72 lg:w-80 flex-shrink-0">
                 <div className="flex items-center justify-between p-3 rounded-t-lg mb-2">
                   <h3 className="font-semibold text-lg">{column.name}</h3>
                   <span className="text-sm font-medium text-muted-foreground bg-muted rounded-full px-2 py-0.5">

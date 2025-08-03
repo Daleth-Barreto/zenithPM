@@ -64,14 +64,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const provider = new GoogleAuthProvider();
     const result = await signInWithPopup(auth, provider);
     
-    // Save user to Firestore 'users' collection on first sign-in with lowercase email
+    // Save or update user in Firestore 'users' collection with lowercase email
     const userDocRef = doc(db, 'users', result.user.uid);
      await setDoc(userDocRef, {
       uid: result.user.uid,
       email: result.user.email?.toLowerCase(), // Storing email in lowercase
       displayName: result.user.displayName,
       createdAt: new Date(),
-    }, { merge: true }); // Merge to avoid overwriting existing data
+    }, { merge: true }); // Merge to avoid overwriting existing data and to sync existing users
 
     return result;
   };

@@ -91,7 +91,6 @@ export function getProjectsForUser(
   userId: string,
   callback: (projects: Project[]) => void
 ) {
-  const projectsRef = collection(db, 'projects');
   const projectsMap = new Map<string, Project>();
 
   const updateCallback = () => {
@@ -99,10 +98,14 @@ export function getProjectsForUser(
   };
 
   // Listener for projects where the user is a direct member
-  const directMembershipQuery = query(projectsRef, where('teamIds', 'array-contains', userId));
+  const directMembershipQuery = query(collection(db, 'projects'), where('teamIds', 'array-contains', userId));
   const directUnsubscribe = onSnapshot(directMembershipQuery, (snapshot) => {
-    snapshot.docs.forEach(doc => {
-      projectsMap.set(doc.id, { id: doc.id, ...doc.data() } as Project);
+    snapshot.docChanges().forEach((change) => {
+      if (change.type === "removed") {
+        projectsMap.delete(change.doc.id);
+      } else {
+        projectsMap.set(change.doc.id, { id: change.doc.id, ...change.doc.data() } as Project);
+      }
     });
     updateCallback();
   });
@@ -111,25 +114,32 @@ export function getProjectsForUser(
   const teamsRef = collection(db, 'teams');
   const teamsQuery = query(teamsRef, where('memberIds', 'array-contains', userId));
   
-  let teamProjectsUnsubscribe: (() => void) | null = null;
+  let teamProjectsUnsubscribes: (() => void)[] = [];
 
   const teamsUnsubscribe = onSnapshot(teamsQuery, (teamsSnapshot) => {
     const userTeamIds = teamsSnapshot.docs.map(doc => doc.id);
 
-    // Unsubscribe from the previous listener if the user's teams change
-    if (teamProjectsUnsubscribe) {
-      teamProjectsUnsubscribe();
-      teamProjectsUnsubscribe = null;
-    }
+    // Unsubscribe from all previous team-based project listeners
+    teamProjectsUnsubscribes.forEach(unsub => unsub());
+    teamProjectsUnsubscribes = [];
+    
+    // Clean up projects that might have been associated with a team the user left
+    // This is complex, so for now we rely on the new queries to rebuild the map
+    // A more robust solution might track which projects are from which teams.
 
     if (userTeamIds.length > 0) {
-      const teamMembershipQuery = query(projectsRef, where('associatedTeamIds', 'array-contains-any', userTeamIds));
-      teamProjectsUnsubscribe = onSnapshot(teamMembershipQuery, (projectSnapshot) => {
-        projectSnapshot.docs.forEach(doc => {
-          projectsMap.set(doc.id, { id: doc.id, ...doc.data() } as Project);
+      const teamMembershipQuery = query(collection(db, 'projects'), where('associatedTeamIds', 'array-contains-any', userTeamIds));
+      const teamProjectsUnsubscribe = onSnapshot(teamMembershipQuery, (projectSnapshot) => {
+         projectSnapshot.docChanges().forEach((change) => {
+          if (change.type === "removed") {
+            projectsMap.delete(change.doc.id);
+          } else {
+            projectsMap.set(change.doc.id, { id: change.doc.id, ...change.doc.data() } as Project);
+          }
         });
         updateCallback();
       });
+      teamProjectsUnsubscribes.push(teamProjectsUnsubscribe);
     } else {
       // If user is not in any teams, just trigger the update with direct projects
       updateCallback();
@@ -140,9 +150,7 @@ export function getProjectsForUser(
   return () => {
     directUnsubscribe();
     teamsUnsubscribe();
-    if (teamProjectsUnsubscribe) {
-      teamProjectsUnsubscribe();
-    }
+    teamProjectsUnsubscribes.forEach(unsub => unsub());
   };
 }
 
@@ -308,7 +316,7 @@ export async function addCommentToTask(projectId: string, taskId: string, commen
     const newComment: any = {
         ...comment,
         id: doc(collection(db, 'dummy')).id, // Generate random ID
-        createdAt: serverTimestamp(),
+        createdAt: new Date(),
     }
     if (comment.authorAvatarUrl === undefined) {
         delete newComment.authorAvatarUrl;
@@ -628,3 +636,5 @@ export async function respondToInvitation(invitationId: string, accepted: boolea
     });
   });
 }
+
+    

@@ -36,7 +36,7 @@ import {
   MessageSquare,
   Edit,
 } from 'lucide-react';
-import type { Task, Project, TaskPriority, TaskStatus, Subtask, SubtaskStatus, Team } from '@/lib/types';
+import type { Task, Project, TaskPriority, TaskStatus, Subtask, SubtaskStatus, Team, Comment } from '@/lib/types';
 import { Calendar } from '../ui/calendar';
 import { Popover, PopoverTrigger, PopoverContent } from '../ui/popover';
 import { format, formatDistanceToNow } from 'date-fns';
@@ -192,12 +192,17 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
 
   const handleAddComment = async () => {
     if (!newComment.trim() || !currentTask || !user) return;
-    const commentData = {
+    
+    const commentData: Omit<Comment, 'id' | 'createdAt'> = {
         text: newComment,
         authorId: user.uid,
         authorName: user.displayName || 'Usuario',
-        authorAvatarUrl: user.photoURL || undefined,
     };
+
+    if (user.photoURL) {
+      commentData.authorAvatarUrl = user.photoURL;
+    }
+
     await addCommentToTask(project.id, currentTask.id, commentData);
     setNewComment('');
   }
@@ -644,3 +649,5 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
     </Sheet>
   );
 }
+
+    

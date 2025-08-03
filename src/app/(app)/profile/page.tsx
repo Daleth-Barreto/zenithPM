@@ -112,7 +112,7 @@ export default function ProfilePage() {
        toast({
         variant: 'destructive',
         title: 'Error al eliminar la cuenta',
-        description: getFirebaseAuthErrorMessage(error.code)
+        description: getFirebaseAuthErrorMessage(error.code),
       });
     } finally {
         setIsDeleting(false);

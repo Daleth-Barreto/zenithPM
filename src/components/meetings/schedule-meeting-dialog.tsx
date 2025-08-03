@@ -64,16 +64,9 @@ export function ScheduleMeetingDialog({ project }: ScheduleMeetingDialogProps) {
 
   const handleGenerateLink = () => {
     window.open('https://meet.google.com/new', '_blank');
-    navigator.clipboard.readText().then(text => {
-        if (text.includes('meet.google.com')) {
-            setMeetLink(text);
-        }
-    }).catch(err => {
-        console.error('Failed to read clipboard contents: ', err);
-    });
     toast({
         title: "Pestaña de Google Meet abierta",
-        description: "El enlace de la reunión se ha copiado. Pégalo en el campo de abajo.",
+        description: "Una vez creada la reunión, copia su URL y pégala en el campo de abajo.",
     });
   };
 

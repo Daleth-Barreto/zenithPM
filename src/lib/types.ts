@@ -13,6 +13,15 @@ export interface TeamMember extends User {
   currentWorkload: number; // A number from 0 to 100
 }
 
+export interface Team {
+  id: string;
+  name: string;
+  ownerId: string;
+  members: TeamMember[];
+  memberIds: string[];
+  createdAt: any;
+}
+
 export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
 export type TaskStatus = 'backlog' | 'in-progress' | 'review' | 'done';
 export type SubtaskStatus = 'pending' | 'completed';
@@ -46,6 +55,7 @@ export interface Task {
   priority: TaskPriority;
   dueDate?: Date;
   assignee?: TeamMember | null;
+  assignedTeamId?: string | null;
   collaborators?: TeamMember[];
   tags?: TaskTag[];
   subtasks?: Subtask[];
@@ -61,6 +71,8 @@ export interface Project {
   color: string;
   progress: number;
   team: TeamMember[];
+  teamIds: string[]; // User IDs
+  associatedTeamIds?: string[]; // Team IDs
   tasks: Task[];
 }
 

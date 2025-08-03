@@ -19,7 +19,7 @@ import {
   orderBy,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import type { Project, TeamMember, Task, TaskStatus, Comment } from './types';
+import type { Project, TeamMember, Task, TaskStatus, Comment, Team } from './types';
 import type { User } from 'firebase/auth';
 import { generateAvatar } from './avatar';
 
@@ -62,6 +62,7 @@ export async function createProject(
     team: [owner],
     color: projectColor,
     imageUrl: imageUrl,
+    associatedTeamIds: [],
   });
 
   return {
@@ -70,6 +71,7 @@ export async function createProject(
     progress: 0,
     tasks: [],
     team: [owner],
+    teamIds: [user.uid],
     color: projectColor,
     imageUrl: imageUrl, 
   };
@@ -92,6 +94,8 @@ export function getProjectsForUser(
         description: data.description,
         progress: data.progress,
         team: data.team,
+        teamIds: data.teamIds,
+        associatedTeamIds: data.associatedTeamIds || [],
         imageUrl: data.imageUrl,
         color: data.color,
         tasks: [], // Tasks would be a subcollection, loaded separately
@@ -117,6 +121,8 @@ export function getProjectById(projectId: string, callback: (project: Project | 
                 description: data.description,
                 progress: data.progress,
                 team: data.team,
+                teamIds: data.teamIds,
+                associatedTeamIds: data.associatedTeamIds || [],
                 imageUrl: data.imageUrl,
                 color: data.color,
                 tasks: [],
@@ -230,7 +236,7 @@ export async function addCommentToTask(projectId: string, taskId: string, commen
 }
 
 
-// --- TEAM ---
+// --- TEAM MEMBERS ---
 export async function inviteTeamMember(projectId: string, email: string) {
   // This is a simplified version. A real app would:
   // 1. Check if the user exists in a main 'users' collection (we assume this for now).
@@ -284,4 +290,78 @@ export async function updateTeamMemberRole(projectId: string, memberId: string, 
             team: updatedTeam,
         });
     }
+}
+
+// --- TEAMS ---
+
+export async function createTeam(teamData: { name: string, members: TeamMember[] }, user: User): Promise<Team> {
+  const owner: TeamMember = {
+    id: user.uid,
+    name: user.displayName || 'Usuario sin nombre',
+    email: user.email || '',
+    avatarUrl: user.photoURL || generateAvatar(user.displayName || user.email || 'U'),
+    initials: (user.displayName || 'U').charAt(0).toUpperCase(),
+    role: 'Admin',
+    expertise: 'Sin definir',
+    currentWorkload: 0,
+  };
+
+  // Ensure owner is in the members list
+  const finalMembers = [owner, ...teamData.members.filter(m => m.id !== owner.id)];
+  const memberIds = finalMembers.map(m => m.id);
+
+  const newTeamRef = await addDoc(collection(db, 'teams'), {
+    name: teamData.name,
+    ownerId: user.uid,
+    members: finalMembers,
+    memberIds: memberIds,
+    createdAt: serverTimestamp(),
+  });
+
+  return {
+    id: newTeamRef.id,
+    name: teamData.name,
+    ownerId: user.uid,
+    members: finalMembers,
+    memberIds: memberIds,
+    createdAt: new Date(),
+  };
+}
+
+export function getTeamsForUser(userId: string, callback: (teams: Team[]) => void) {
+  const teamsRef = collection(db, 'teams');
+  const q = query(teamsRef, where('memberIds', 'array-contains', userId));
+
+  const unsubscribe = onSnapshot(q, (querySnapshot) => {
+    const teams: Team[] = [];
+    querySnapshot.forEach((doc) => {
+      teams.push({ id: doc.id, ...doc.data() } as Team);
+    });
+    callback(teams);
+  });
+
+  return unsubscribe;
+}
+
+export async function getTeamById(teamId: string): Promise<Team | null> {
+    const teamRef = doc(db, 'teams', teamId);
+    const teamSnap = await getDoc(teamRef);
+    if (teamSnap.exists()) {
+        return { id: teamSnap.id, ...teamSnap.data() } as Team;
+    }
+    return null;
+}
+
+export async function addTeamToProject(projectId: string, teamId: string) {
+    const projectRef = doc(db, 'projects', projectId);
+    await updateDoc(projectRef, {
+        associatedTeamIds: arrayUnion(teamId)
+    });
+}
+
+export async function removeTeamFromProject(projectId: string, teamId: string) {
+    const projectRef = doc(db, 'projects', projectId);
+    await updateDoc(projectRef, {
+        associatedTeamIds: arrayRemove(teamId)
+    });
 }

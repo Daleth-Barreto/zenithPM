@@ -17,6 +17,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  SelectGroup,
+  SelectLabel
 } from '@/components/ui/select';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
@@ -34,14 +36,14 @@ import {
   MessageSquare,
   Edit,
 } from 'lucide-react';
-import type { Task, Project, TaskPriority, TaskStatus, Subtask, SubtaskStatus } from '@/lib/types';
+import type { Task, Project, TaskPriority, TaskStatus, Subtask, SubtaskStatus, Team } from '@/lib/types';
 import { Calendar } from '../ui/calendar';
 import { Popover, PopoverTrigger, PopoverContent } from '../ui/popover';
 import { format, formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { TaskAssigner } from '../ai/task-assigner';
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { deleteTask, updateTask, addCommentToTask } from '@/lib/firebase-services';
+import { deleteTask, updateTask, addCommentToTask, getTeamById } from '@/lib/firebase-services';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -88,6 +90,9 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
   const [isDeleting, setIsDeleting] = useState(false);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
   const [newComment, setNewComment] = useState('');
+  const [associatedTeams, setAssociatedTeams] = useState<Team[]>([]);
+  const [assignedTeam, setAssignedTeam] = useState<Team | null>(null);
+
   const { toast } = useToast();
   const { user } = useAuth();
   const debouncedSaveRef = useRef<NodeJS.Timeout>();
@@ -99,8 +104,24 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
     if (task) {
       setCurrentTask(task);
       setIsEditing(false);
+      
+      // Fetch assigned team details if any
+      if (task.assignedTeamId) {
+        getTeamById(task.assignedTeamId).then(setAssignedTeam);
+      } else {
+        setAssignedTeam(null);
+      }
     }
   }, [task]);
+
+  useEffect(() => {
+    // Fetch full team objects based on associatedTeamIds
+    const teamPromises = project.associatedTeamIds?.map(id => getTeamById(id)) || [];
+    Promise.all(teamPromises).then(teams => {
+      setAssociatedTeams(teams.filter((t): t is Team => t !== null));
+    });
+  }, [project.associatedTeamIds]);
+
 
   const saveTask = useCallback(async (taskToSave: Task) => {
     if (!canEdit) return;
@@ -125,9 +146,20 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
     handleDebouncedSave(updatedTask);
   }
 
-  const handleAssigneeChange = (memberId: string) => {
-    const assignee = project.team.find(m => m.id === memberId);
-    handleFieldChange('assignee', assignee || null);
+  const handleAssigneeChange = (value: string) => {
+    if (value.startsWith('user-')) {
+        const memberId = value.replace('user-', '');
+        const assignee = project.team.find(m => m.id === memberId);
+        handleFieldChange('assignee', assignee || null);
+        handleFieldChange('assignedTeamId', null);
+    } else if (value.startsWith('team-')) {
+        const teamId = value.replace('team-', '');
+        handleFieldChange('assignedTeamId', teamId);
+        handleFieldChange('assignee', null);
+    } else {
+        handleFieldChange('assignee', null);
+        handleFieldChange('assignedTeamId', null);
+    }
   }
   
   const handleSubtaskStatusChange = (subtaskId: string, status: SubtaskStatus) => {
@@ -242,6 +274,13 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
                                     <AvatarFallback>{currentTask.assignee.initials}</AvatarFallback>
                                 </Avatar>
                                 <span>{currentTask.assignee.name}</span>
+                            </div>
+                        ) : assignedTeam ? (
+                            <div className="flex items-center gap-2">
+                                <Avatar className="h-6 w-6">
+                                    <AvatarFallback><Users className="h-4 w-4"/></AvatarFallback>
+                                </Avatar>
+                                <span>{assignedTeam.name}</span>
                             </div>
                         ) : <span className="text-muted-foreground italic">Sin asignar</span>}
                     </div>
@@ -412,22 +451,38 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
                   <User className="inline-block mr-2 h-4 w-4" />
                   Asignado a
                 </Label>
-                <Select value={currentTask.assignee?.id} onValueChange={handleAssigneeChange}>
+                <Select value={currentTask.assignee ? `user-${currentTask.assignee.id}` : currentTask.assignedTeamId ? `team-${currentTask.assignedTeamId}` : ''} onValueChange={handleAssigneeChange}>
                   <SelectTrigger>
                     <SelectValue placeholder="Seleccionar asignado..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {project.team.map((member) => (
-                      <SelectItem key={member.id} value={member.id}>
-                        <div className="flex items-center gap-2">
-                          <Avatar className="h-6 w-6">
-                            <AvatarImage src={member.avatarUrl} />
-                            <AvatarFallback>{member.initials}</AvatarFallback>
-                          </Avatar>
-                          <span>{member.name}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
+                    <SelectGroup>
+                       <SelectLabel>Equipos</SelectLabel>
+                        {associatedTeams.map((team) => (
+                           <SelectItem key={team.id} value={`team-${team.id}`}>
+                                <div className="flex items-center gap-2">
+                                <Avatar className="h-6 w-6">
+                                    <AvatarFallback><Users className="h-4 w-4"/></AvatarFallback>
+                                </Avatar>
+                                <span>{team.name}</span>
+                                </div>
+                           </SelectItem>
+                        ))}
+                    </SelectGroup>
+                    <SelectGroup>
+                        <SelectLabel>Miembros</SelectLabel>
+                        {project.team.map((member) => (
+                        <SelectItem key={member.id} value={`user-${member.id}`}>
+                            <div className="flex items-center gap-2">
+                            <Avatar className="h-6 w-6">
+                                <AvatarImage src={member.avatarUrl} />
+                                <AvatarFallback>{member.initials}</AvatarFallback>
+                            </Avatar>
+                            <span>{member.name}</span>
+                            </div>
+                        </SelectItem>
+                        ))}
+                    </SelectGroup>
                   </SelectContent>
                 </Select>
               </div>

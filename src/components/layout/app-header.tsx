@@ -123,7 +123,7 @@ export function AppHeader() {
             <DropdownMenuSeparator />
             {invitations.length > 0 ? (
               invitations.map((invitation) => (
-              <DropdownMenuItem key={invitation.id} className="flex gap-3 items-center justify-between" onSelect={(e) => e.preventDefault()}>
+              <DropdownMenuItem key={invitation.id} className="flex gap-3 items-center justify-between focus:bg-transparent" onSelect={(e) => e.preventDefault()}>
                  <div className="flex gap-3 items-start">
                     <div className="mt-1 text-muted-foreground"><Mail className="h-4 w-4" /></div>
                     <div className="flex flex-col">

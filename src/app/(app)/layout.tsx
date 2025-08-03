@@ -45,9 +45,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     <SidebarProvider>
       <div className="flex h-screen bg-background text-foreground">
         <AppSidebar />
-        <div className="flex flex-1 flex-col overflow-hidden min-w-0">
+        <div className="flex flex-1 flex-col min-w-0">
           <AppHeader />
-          <main className="flex-1 overflow-auto">{children}</main>
+          <main className="flex-1 overflow-y-auto">{children}</main>
         </div>
       </div>
       <AppTour isTourOpen={isTourOpen} onTourComplete={handleTourComplete} />

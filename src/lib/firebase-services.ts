@@ -65,12 +65,19 @@ export async function createNotificationsForUsers(userIds: string[], message: st
 
 export function getNotificationsForUser(userId: string, callback: (notifications: Notification[]) => void) {
   const notifsRef = collection(db, 'notifications');
-  const q = query(notifsRef, where('userId', '==', userId), orderBy('createdAt', 'desc'), limit(20));
+  // Removed orderby to prevent index error. Sorting will be done client-side.
+  const q = query(notifsRef, where('userId', '==', userId), limit(50));
 
   const unsubscribe = onSnapshot(q, (snapshot) => {
     const notifications: Notification[] = [];
     snapshot.forEach(doc => {
       notifications.push({ id: doc.id, ...doc.data() } as Notification);
+    });
+    // Sort client-side
+    notifications.sort((a, b) => {
+        const dateA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : 0;
+        const dateB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : 0;
+        return dateB - dateA;
     });
     callback(notifications);
   }, (error) => {

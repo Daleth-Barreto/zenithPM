@@ -40,15 +40,16 @@ export default function TeamManagementPage() {
 
   useEffect(() => {
     if (teamId) {
-      const unsubscribe = getTeamById(teamId, (t) => {
+      const fetchTeam = async () => {
+        const t = await getTeamById(teamId);
         if (t) {
           setTeam(t);
         } else {
           router.push('/teams'); // Redirect if team not found
         }
         setLoading(false);
-      });
-      return () => unsubscribe();
+      }
+      fetchTeam();
     }
   }, [teamId, router]);
   

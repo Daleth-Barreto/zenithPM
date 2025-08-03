@@ -48,25 +48,20 @@ export default function ProjectSettingsPage() {
   useEffect(() => {
     if (projectId) {
       const unsubscribe = getProjectById(projectId, (p) => {
-        if(p) {
+        setLoading(true);
+        if (p) {
           setProject(p);
           if (p.associatedTeamIds && p.associatedTeamIds.length > 0) {
-            const teamUnsubscribes = p.associatedTeamIds.map(teamId => 
-              getTeamById(teamId, team => {
-                if (team) {
-                  setAssociatedTeams(prev => 
-                    [...prev.filter(t => t.id !== teamId), team]
-                    .sort((a,b) => a.name.localeCompare(b.name))
-                  );
-                }
-              })
-            );
-            // This is complex to manage, for now we don't return the unsub array
+            Promise.all(p.associatedTeamIds.map(teamId => getTeamById(teamId)))
+              .then(teams => {
+                setAssociatedTeams(teams.filter((t): t is Team => t !== null)
+                  .sort((a, b) => a.name.localeCompare(b.name)));
+              });
           } else {
             setAssociatedTeams([]);
           }
         }
-        setLoading(false)
+        setLoading(false);
       });
       return () => unsubscribe();
     }

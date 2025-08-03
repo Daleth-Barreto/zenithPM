@@ -381,16 +381,14 @@ export function getTeamsForUser(userId: string, callback: (teams: Team[]) => voi
   return unsubscribe;
 }
 
-export function getTeamById(teamId: string, callback: (team: Team | null) => void) {
+export async function getTeamById(teamId: string): Promise<Team | null> {
     const teamRef = doc(db, 'teams', teamId);
-    const unsubscribe = onSnapshot(teamRef, (teamSnap) => {
-        if (teamSnap.exists()) {
-            callback({ id: teamSnap.id, ...teamSnap.data() } as Team);
-        } else {
-            callback(null);
-        }
-    });
-    return unsubscribe;
+    const teamSnap = await getDoc(teamRef);
+    if (teamSnap.exists()) {
+        return { id: teamSnap.id, ...teamSnap.data() } as Team;
+    } else {
+        return null;
+    }
 }
 
 export async function addTeamToProject(projectId: string, teamId: string) {

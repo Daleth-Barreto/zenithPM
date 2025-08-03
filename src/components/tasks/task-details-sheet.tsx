@@ -116,10 +116,14 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
 
   useEffect(() => {
     // Fetch full team objects based on associatedTeamIds
-    const teamPromises = project.associatedTeamIds?.map(id => getTeamById(id)) || [];
-    Promise.all(teamPromises).then(teams => {
-      setAssociatedTeams(teams.filter((t): t is Team => t !== null));
-    });
+    if (project.associatedTeamIds && project.associatedTeamIds.length > 0) {
+      Promise.all(project.associatedTeamIds.map(id => getTeamById(id)))
+        .then(teams => {
+          setAssociatedTeams(teams.filter((t): t is Team => t !== null));
+        });
+    } else {
+      setAssociatedTeams([]);
+    }
   }, [project.associatedTeamIds]);
 
 

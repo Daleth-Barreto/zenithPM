@@ -59,7 +59,7 @@ const pricingPlans = [
     },
     {
         name: 'Startup',
-        price: '$29/mes',
+        price: '$10/mes',
         description: 'Perfecto para equipos.',
         cta: 'Elige Startup',
     },

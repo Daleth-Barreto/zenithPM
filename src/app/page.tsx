@@ -228,7 +228,7 @@ export default function LandingPage() {
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annually'>('monthly');
   return (
     <>
-      <div className="flex flex-col min-h-screen bg-background text-foreground font-body antialiased">
+      <div className="flex flex-col min-h-screen bg-background text-foreground antialiased">
         <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
           <div className="container flex h-14 items-center justify-between px-4 md:px-6">
             <div className="flex items-center gap-2">
@@ -413,7 +413,7 @@ export default function LandingPage() {
           </section>
           
           {/* FAQ Section */}
-          <section className="py-16 md:py-20 bg-muted/50">
+          <section className="py-16 md:py-20">
             <div className="container mx-auto px-4 md:px-6">
               <div className="text-center mb-12">
                 <h2 className="text-3xl md:text-4xl font-bold">Preguntas Frecuentes</h2>
@@ -459,7 +459,7 @@ export default function LandingPage() {
           </section>
 
           {/* CTA Section */}
-          <section className="py-16 md:py-20">
+          <section className="py-16 md:py-20 bg-muted/50">
             <div className="container mx-auto text-center px-4 md:px-6">
               <h2 className="text-3xl md:text-4xl font-bold">¿Listo para alcanzar tu cima?</h2>
               <p className="text-muted-foreground mt-4 max-w-xl mx-auto">

@@ -19,36 +19,36 @@ export function NewProjectDialog() {
       <DialogTrigger asChild>
         <Button>
           <PlusCircle className="mr-2 h-4 w-4" />
-          New Project
+          Nuevo Proyecto
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Create New Project</DialogTitle>
+          <DialogTitle>Crear Nuevo Proyecto</DialogTitle>
           <DialogDescription>
-            Fill in the details below to start your new project.
+            Completa los detalles a continuación para iniciar tu nuevo proyecto.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="name" className="text-right">
-              Project Name
+              Nombre del Proyecto
             </Label>
-            <Input id="name" placeholder="e.g., QuantumLeap CRM" className="col-span-3" />
+            <Input id="name" placeholder="p.ej., QuantumLeap CRM" className="col-span-3" />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="description" className="text-right">
-              Description
+              Descripción
             </Label>
             <Textarea
               id="description"
-              placeholder="A short description of the project."
+              placeholder="Una breve descripción del proyecto."
               className="col-span-3"
             />
           </div>
         </div>
         <DialogFooter>
-          <Button type="submit">Create Project</Button>
+          <Button type="submit">Crear Proyecto</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

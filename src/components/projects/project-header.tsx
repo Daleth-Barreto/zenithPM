@@ -22,10 +22,10 @@ export function ProjectHeader({ project }: ProjectHeaderProps) {
   };
 
   const tabs = [
-    { id: 'board', label: 'Board', href: `/projects/${project.id}/board` },
-    { id: 'tasks', label: 'Tasks', href: `/projects/${project.id}/tasks` },
-    { id: 'brainstorm', label: 'Brainstorm', href: `/projects/${project.id}/brainstorm` },
-    { id: 'settings', label: 'Settings', href: `/projects/${project.id}/settings` },
+    { id: 'board', label: 'Tablero', href: `/projects/${project.id}/board` },
+    { id: 'tasks', label: 'Tareas', href: `/projects/${project.id}/tasks` },
+    { id: 'brainstorm', label: 'Ideas', href: `/projects/${project.id}/brainstorm` },
+    { id: 'settings', label: 'Configuración', href: `/projects/${project.id}/settings` },
   ];
 
   return (

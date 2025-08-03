@@ -24,7 +24,7 @@ export function MeetingSummary() {
       const result = await summarizeMeetingNotes({ notes });
       setSummary(result.summary);
     } catch (e) {
-      setError('Failed to generate summary. Please try again.');
+      setError('No se pudo generar el resumen. Por favor, inténtalo de nuevo.');
       console.error(e);
     } finally {
       setIsLoading(false);
@@ -35,16 +35,16 @@ export function MeetingSummary() {
     <div className="grid md:grid-cols-2 gap-8">
       <Card>
         <CardHeader>
-          <CardTitle>Meeting Notes</CardTitle>
+          <CardTitle>Notas de la Reunión</CardTitle>
           <CardDescription>
-            Paste your meeting notes here to generate a summary.
+            Pega tus notas de la reunión aquí para generar un resumen.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <Textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="Start typing or paste your notes..."
+            placeholder="Empieza a escribir o pega tus notas..."
             rows={15}
             className="resize-none"
           />
@@ -54,15 +54,15 @@ export function MeetingSummary() {
             ) : (
               <Sparkles className="mr-2 h-4 w-4" />
             )}
-            Summarize Notes
+            Resumir Notas
           </Button>
         </CardContent>
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle>AI Summary</CardTitle>
+          <CardTitle>Resumen con IA</CardTitle>
           <CardDescription>
-            A concise summary of your key decisions and action items.
+            Un resumen conciso de tus decisiones clave y elementos de acción.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -80,7 +80,7 @@ export function MeetingSummary() {
             <div className="flex flex-col items-center justify-center h-64 text-center border-2 border-dashed rounded-lg">
               <FileText className="h-12 w-12 text-muted-foreground" />
               <p className="mt-4 text-muted-foreground">
-                Your summary will appear here.
+                Tu resumen aparecerá aquí.
               </p>
             </div>
           )}

@@ -2,102 +2,87 @@
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { useRouter } from 'next/navigation';
 import { Logo } from '@/components/logo';
+import { ArrowRight } from 'lucide-react';
 
-function GoogleIcon(props: React.SVGProps<SVGSVGElement>) {
+export default function LandingPage() {
   return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="1em"
-      height="1em"
-      viewBox="0 0 48 48"
-      {...props}
-    >
-      <path
-        fill="#FFC107"
-        d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039L38.802 8.92C34.331 4.761 29.593 2.25 24 2.25C11.31 2.25 1.75 11.81 1.75 24s9.56 21.75 22.25 21.75c12.132 0 21.493-9.593 21.493-21.52c0-1.503-.134-2.956-.389-4.397"
-      ></path>
-      <path
-        fill="#FF3D00"
-        d="M6.306 14.691c-1.229 2.296-1.956 4.897-1.956 7.691s.727 5.395 1.956 7.691l-4.723 3.65C.656 30.631 0 27.464 0 24s.656-6.631 2.003-9.398l4.303-3.911Z"
-      ></path>
-      <path
-        fill="#4CAF50"
-        d="M24 48c5.166 0 9.86-1.977 13.409-5.192l-6.19-4.82c-2.008 1.52-4.588 2.456-7.219 2.456c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C6.462 42.623 14.594 48 24 48Z"
-      ></path>
-      <path
-        fill="#1976D2"
-        d="M43.611 20.083H42V20H24v8h11.303c-.792 2.237-2.231 4.166-4.087 5.574l6.19 4.82c3.42-3.172 5.568-7.832 5.568-12.818c0-1.503-.134-2.956-.389-4.397Z"
-      ></path>
-    </svg>
-  );
-}
-
-export default function LoginPage() {
-  const router = useRouter();
-
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    // In a real app, you'd handle authentication here.
-    // On success, redirect to the dashboard.
-    router.push('/dashboard');
-  };
-
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader>
-          <div className="flex items-center justify-center mb-4">
-            <Logo className="h-10 w-10 text-primary" />
-          </div>
-          <CardTitle className="text-2xl text-center">Welcome back</CardTitle>
-          <CardDescription className="text-center">
-            Log in to your ZenithPM account to continue.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleLogin} className="grid gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" placeholder="m@example.com" required />
-            </div>
-            <div className="grid gap-2">
-              <div className="flex items-center">
-                <Label htmlFor="password">Password</Label>
-                <Link href="#" className="ml-auto inline-block text-sm underline">
-                  Forgot your password?
-                </Link>
-              </div>
-              <Input id="password" type="password" required />
-            </div>
-            <Button type="submit" className="w-full">
-              Login
-            </Button>
-          </form>
-          <div className="relative my-4">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-card px-2 text-muted-foreground">Or continue with</span>
-            </div>
-          </div>
-          <Button variant="outline" className="w-full">
-            <GoogleIcon className="mr-2 h-4 w-4" />
-            Login with Google
+    <div className="flex flex-col min-h-screen bg-background">
+      <header className="flex items-center justify-between p-4 px-6 border-b">
+        <div className="flex items-center gap-2">
+          <Logo className="h-8 w-8 text-primary" />
+          <span className="text-xl font-semibold">ZenithPM</span>
+        </div>
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" asChild>
+            <Link href="/login">Iniciar Sesión</Link>
           </Button>
-          <div className="mt-4 text-center text-sm">
-            Don&apos;t have an account?{' '}
-            <Link href="/signup" className="underline">
-              Sign up
-            </Link>
+          <Button asChild>
+            <Link href="/signup">Registrarse</Link>
+          </Button>
+        </div>
+      </header>
+
+      <main className="flex-1">
+        <section className="relative h-[600px] flex items-center justify-center text-center text-white">
+          <div
+            className="absolute inset-0 bg-cover bg-center"
+            style={{
+              backgroundImage:
+                "url('https://placehold.co/1920x1080/000000/FFFFFF?text=.')",
+            }}
+            data-ai-hint="office collaboration"
+          >
+            <div className="absolute inset-0 bg-black/50" />
           </div>
-        </CardContent>
-      </Card>
+          <div className="relative z-10 p-4">
+            <h1 className="text-5xl md:text-6xl font-bold tracking-tighter">
+              Alcanza Nuevos Picos de Productividad
+            </h1>
+            <p className="mt-4 max-w-2xl mx-auto text-lg text-primary-foreground/80">
+              Colabora, gestiona proyectos y organiza tareas como nunca antes. ZenithPM es tu centro de mando todo en uno para el éxito del proyecto.
+            </p>
+            <Button size="lg" className="mt-8" asChild>
+              <Link href="/signup">
+                Comenzar Gratis <ArrowRight className="ml-2" />
+              </Link>
+            </Button>
+          </div>
+        </section>
+
+        <section id="features" className="py-20 px-4 md:px-8">
+          <div className="container mx-auto">
+            <h2 className="text-4xl font-bold text-center mb-12">Características Potentes</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <div className="text-center p-6 border rounded-lg shadow-sm">
+                <Logo className="w-12 h-12 mx-auto mb-4 text-primary" />
+                <h3 className="text-xl font-semibold mb-2">Gestión de Tareas Kanban</h3>
+                <p className="text-muted-foreground">
+                  Visualiza tu flujo de trabajo con tableros Kanban intuitivos. Arrastra y suelta tareas entre columnas para un seguimiento fácil del progreso.
+                </p>
+              </div>
+              <div className="text-center p-6 border rounded-lg shadow-sm">
+                <Logo className="w-12 h-12 mx-auto mb-4 text-primary" />
+                <h3 className="text-xl font-semibold mb-2">Colaboración en Equipo</h3>
+                <p className="text-muted-foreground">
+                  Mantén a tu equipo alineado. Asigna tareas, comparte archivos y comunícate dentro del contexto de tu proyecto.
+                </p>
+              </div>
+              <div className="text-center p-6 border rounded-lg shadow-sm">
+                <Logo className="w-12 h-12 mx-auto mb-4 text-primary" />
+                <h3 className="text-xl font-semibold mb-2">Resúmenes con IA</h3>
+                <p className="text-muted-foreground">
+                  Transforma largas notas de reuniones en resúmenes concisos y accionables con el poder de la IA.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer className="p-6 border-t text-center text-muted-foreground">
+        © {new Date().getFullYear()} ZenithPM. Todos los derechos reservados.
+      </footer>
     </div>
   );
 }

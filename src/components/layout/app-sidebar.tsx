@@ -46,11 +46,11 @@ export function AppSidebar() {
             <SidebarMenuButton
               asChild
               isActive={isActive('/dashboard')}
-              tooltip={{ children: 'Dashboard' }}
+              tooltip={{ children: 'Panel' }}
             >
               <Link href="/dashboard">
                 <LayoutDashboard />
-                <span>Dashboard</span>
+                <span>Panel</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -60,7 +60,7 @@ export function AppSidebar() {
               <SidebarMenuButton className="justify-between group-data-[collapsible=icon]:justify-center">
                 <div className="flex items-center gap-2">
                   <FolderKanban />
-                  <span>Projects</span>
+                  <span>Proyectos</span>
                 </div>
                 <ChevronDown className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180 group-data-[collapsible=icon]:hidden" />
               </SidebarMenuButton>
@@ -92,11 +92,11 @@ export function AppSidebar() {
             <SidebarMenuButton
               asChild
               isActive={isActive('/profile')}
-              tooltip={{ children: 'Profile' }}
+              tooltip={{ children: 'Perfil' }}
             >
               <Link href="/profile">
                 <User />
-                <span>Profile</span>
+                <span>Perfil</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>

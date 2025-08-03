@@ -36,10 +36,10 @@ export function ProjectCard({ project }: ProjectCardProps) {
         <CardDescription className="line-clamp-2">{project.description}</CardDescription>
         <div className="mt-4">
           <div className="flex justify-between items-center mb-2">
-            <span className="text-sm text-muted-foreground">Progress</span>
+            <span className="text-sm text-muted-foreground">Progreso</span>
             <span className="text-sm font-semibold">{project.progress}%</span>
           </div>
-          <Progress value={project.progress} aria-label={`${project.progress}% complete`} />
+          <Progress value={project.progress} aria-label={`${project.progress}% completo`} />
         </div>
       </CardContent>
       <CardFooter className="p-6 pt-0 flex justify-between items-center">
@@ -57,7 +57,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
           )}
         </div>
         <Button asChild>
-          <Link href={`/projects/${project.id}/board`}>View Project</Link>
+          <Link href={`/projects/${project.id}/board`}>Ver Proyecto</Link>
         </Button>
       </CardFooter>
     </Card>

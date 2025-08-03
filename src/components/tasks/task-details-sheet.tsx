@@ -31,6 +31,7 @@ import type { Task, Project } from '@/lib/types';
 import { Calendar } from '../ui/calendar';
 import { Popover, PopoverTrigger, PopoverContent } from '../ui/popover';
 import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 import { TaskAssigner } from '../ai/task-assigner';
 
 interface TaskDetailsSheetProps {
@@ -49,24 +50,24 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose }: TaskDetails
         <SheetHeader>
           <SheetTitle className="text-2xl">{task.title}</SheetTitle>
           <SheetDescription>
-            In project <span className="font-semibold text-primary">{project.name}</span>
+            En el proyecto <span className="font-semibold text-primary">{project.name}</span>
           </SheetDescription>
         </SheetHeader>
         <div className="flex-1 overflow-y-auto pr-6 -mr-6 pl-1 -ml-1">
           <div className="grid gap-6 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="description">Description</Label>
+              <Label htmlFor="description">Descripción</Label>
               <Textarea id="description" defaultValue={task.description} rows={5} />
             </div>
             <div className="grid md:grid-cols-2 gap-6">
               <div className="grid gap-2">
                 <Label>
                   <User className="inline-block mr-2 h-4 w-4" />
-                  Assignee
+                  Asignado a
                 </Label>
                 <Select defaultValue={task.assignee?.id}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select assignee..." />
+                    <SelectValue placeholder="Seleccionar asignado..." />
                   </SelectTrigger>
                   <SelectContent>
                     {project.team.map((member) => (
@@ -87,17 +88,17 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose }: TaskDetails
               <div className="grid gap-2">
                 <Label>
                   <AlertCircle className="inline-block mr-2 h-4 w-4" />
-                  Priority
+                  Prioridad
                 </Label>
                 <Select defaultValue={task.priority}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Set priority..." />
+                    <SelectValue placeholder="Establecer prioridad..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="low">Low</SelectItem>
-                    <SelectItem value="medium">Medium</SelectItem>
-                    <SelectItem value="high">High</SelectItem>
-                    <SelectItem value="urgent">Urgent</SelectItem>
+                    <SelectItem value="low">Baja</SelectItem>
+                    <SelectItem value="medium">Media</SelectItem>
+                    <SelectItem value="high">Alta</SelectItem>
+                    <SelectItem value="urgent">Urgente</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -105,16 +106,16 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose }: TaskDetails
               <div className="grid gap-2">
                 <Label>
                   <CalendarIcon className="inline-block mr-2 h-4 w-4" />
-                  Due Date
+                  Fecha de Vencimiento
                 </Label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button variant="outline" className="w-full justify-start text-left font-normal">
-                      {task.dueDate ? format(task.dueDate, 'PPP') : 'Set due date...'}
+                      {task.dueDate ? format(task.dueDate, 'PPP', { locale: es }) : 'Establecer fecha...'}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar mode="single" />
+                    <Calendar mode="single" locale={es}/>
                   </PopoverContent>
                 </Popover>
               </div>
@@ -122,17 +123,17 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose }: TaskDetails
               <div className="grid gap-2">
                 <Label>
                   <Tag className="inline-block mr-2 h-4 w-4" />
-                  Status
+                  Estado
                 </Label>
                 <Select defaultValue={task.status}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Set status..." />
+                    <SelectValue placeholder="Establecer estado..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="backlog">Backlog</SelectItem>
-                    <SelectItem value="in-progress">In Progress</SelectItem>
-                    <SelectItem value="review">Review</SelectItem>
-                    <SelectItem value="done">Done</SelectItem>
+                    <SelectItem value="backlog">Pendiente</SelectItem>
+                    <SelectItem value="in-progress">En Progreso</SelectItem>
+                    <SelectItem value="review">En Revisión</SelectItem>
+                    <SelectItem value="done">Hecho</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -140,7 +141,7 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose }: TaskDetails
               <div className="grid gap-2 md:col-span-2">
                 <Label>
                   <Users className="inline-block mr-2 h-4 w-4" />
-                  Collaborators
+                  Colaboradores
                 </Label>
                 {/* A multi-select component would be ideal here */}
                 <div className="flex flex-wrap gap-2">
@@ -163,12 +164,12 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose }: TaskDetails
         <SheetFooter className="pt-4 border-t">
           <Button variant="destructive" className="mr-auto">
             <Trash2 className="mr-2 h-4 w-4" />
-            Delete Task
+            Eliminar Tarea
           </Button>
           <Button variant="outline" onClick={onClose}>
-            Cancel
+            Cancelar
           </Button>
-          <Button onClick={onClose}>Save Changes</Button>
+          <Button onClick={onClose}>Guardar Cambios</Button>
         </SheetFooter>
       </SheetContent>
     </Sheet>

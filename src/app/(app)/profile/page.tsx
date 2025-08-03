@@ -12,8 +12,8 @@ export default function ProfilePage() {
     <div className="p-4 md:p-8">
       <Card className="max-w-2xl mx-auto">
         <CardHeader>
-          <CardTitle>My Profile</CardTitle>
-          <CardDescription>Update your personal information and settings.</CardDescription>
+          <CardTitle>Mi Perfil</CardTitle>
+          <CardDescription>Actualiza tu información personal y configuración.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="flex items-center gap-4">
@@ -22,28 +22,28 @@ export default function ProfilePage() {
               <AvatarFallback className="text-2xl">{user.initials}</AvatarFallback>
             </Avatar>
             <div className="flex-1">
-              <Label htmlFor="avatar-upload">Profile Picture</Label>
+              <Label htmlFor="avatar-upload">Foto de Perfil</Label>
               <Input id="avatar-upload" type="file" className="mt-1" />
-              <p className="text-xs text-muted-foreground mt-1">PNG, JPG, GIF up to 10MB.</p>
+              <p className="text-xs text-muted-foreground mt-1">PNG, JPG, GIF hasta 10MB.</p>
             </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="fullName">Full Name</Label>
+            <Label htmlFor="fullName">Nombre Completo</Label>
             <Input id="fullName" defaultValue={user.name} />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="email">Email Address</Label>
+            <Label htmlFor="email">Correo Electrónico</Label>
             <Input id="email" type="email" defaultValue={user.email} disabled />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="currentPassword">Current Password</Label>
+            <Label htmlFor="currentPassword">Contraseña Actual</Label>
             <Input id="currentPassword" type="password" />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="newPassword">New Password</Label>
+            <Label htmlFor="newPassword">Nueva Contraseña</Label>
             <Input id="newPassword" type="password" />
           </div>
-          <Button>Update Profile</Button>
+          <Button>Actualizar Perfil</Button>
         </CardContent>
       </Card>
     </div>

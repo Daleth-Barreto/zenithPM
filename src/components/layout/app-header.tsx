@@ -34,7 +34,7 @@ export function AppHeader() {
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               type="search"
-              placeholder="Search projects or tasks..."
+              placeholder="Buscar proyectos o tareas..."
               className="w-full appearance-none bg-background pl-8 shadow-none md:w-2/3 lg:w-1/3"
             />
           </div>
@@ -42,7 +42,7 @@ export function AppHeader() {
       </div>
       <Button variant="ghost" size="icon" className="rounded-full">
         <Bell className="h-5 w-5" />
-        <span className="sr-only">Toggle notifications</span>
+        <span className="sr-only">Alternar notificaciones</span>
       </Button>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -51,7 +51,7 @@ export function AppHeader() {
               <AvatarImage src={currentUser.avatarUrl} alt={currentUser.name} />
               <AvatarFallback>{currentUser.initials}</AvatarFallback>
             </Avatar>
-            <span className="sr-only">Toggle user menu</span>
+            <span className="sr-only">Alternar menú de usuario</span>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
@@ -65,18 +65,18 @@ export function AppHeader() {
           <DropdownMenuItem asChild>
             <Link href="/profile">
               <UserIcon className="mr-2 h-4 w-4" />
-              <span>Profile</span>
+              <span>Perfil</span>
             </Link>
           </DropdownMenuItem>
           <DropdownMenuItem>
             <Settings className="mr-2 h-4 w-4" />
-            <span>Settings</span>
+            <span>Configuración</span>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem asChild>
             <Link href="/">
               <LogOut className="mr-2 h-4 w-4" />
-              <span>Log out</span>
+              <span>Cerrar sesión</span>
             </Link>
           </DropdownMenuItem>
         </DropdownMenuContent>

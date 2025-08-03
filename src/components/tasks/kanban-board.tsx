@@ -21,10 +21,10 @@ type ColumnData = {
 
 export function KanbanBoard({ project }: KanbanBoardProps) {
   const initialColumns: Record<Task['status'], ColumnData> = {
-    backlog: { name: 'Backlog', items: [] },
-    'in-progress': { name: 'In Progress', items: [] },
-    review: { name: 'Review', items: [] },
-    done: { name: 'Done', items: [] },
+    backlog: { name: 'Pendiente', items: [] },
+    'in-progress': { name: 'En Progreso', items: [] },
+    review: { name: 'En Revisión', items: [] },
+    done: { name: 'Hecho', items: [] },
   };
 
   project.tasks.forEach((task) => {
@@ -82,7 +82,7 @@ export function KanbanBoard({ project }: KanbanBoardProps) {
                 <div className="p-3 border-b">
                   <h3 className="font-semibold">{column.name}</h3>
                   <p className="text-sm text-muted-foreground">
-                    {column.items.length} task{column.items.length !== 1 ? 's' : ''}
+                    {column.items.length} tarea{column.items.length !== 1 ? 's' : ''}
                   </p>
                 </div>
                 <div className="flex-1 p-2 overflow-y-auto">

@@ -7,7 +7,7 @@ export interface User {
 }
 
 export interface TeamMember extends User {
-  role: 'Admin' | 'Member';
+  role: 'Admin' | 'Miembro';
   expertise: string;
   currentWorkload: number; // A number from 0 to 100
 }

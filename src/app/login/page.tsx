@@ -37,42 +37,43 @@ function GoogleIcon(props: React.SVGProps<SVGSVGElement>) {
   );
 }
 
-export default function SignupPage() {
+export default function LoginPage() {
   const router = useRouter();
 
-  const handleSignup = (e: React.FormEvent) => {
+  const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     router.push('/dashboard');
   };
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <Card className="mx-auto max-w-sm">
+      <Card className="w-full max-w-sm">
         <CardHeader>
           <div className="flex items-center justify-center mb-4">
             <Logo className="h-10 w-10 text-primary" />
           </div>
-          <CardTitle className="text-xl text-center">Crea tu cuenta</CardTitle>
+          <CardTitle className="text-2xl text-center">Bienvenido de nuevo</CardTitle>
           <CardDescription className="text-center">
-            Ingresa tu información para comenzar con ZenithPM.
+            Inicia sesión en tu cuenta de ZenithPM para continuar.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSignup} className="grid gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="full-name">Nombre completo</Label>
-              <Input id="full-name" placeholder="John Doe" required />
-            </div>
+          <form onSubmit={handleLogin} className="grid gap-4">
             <div className="grid gap-2">
               <Label htmlFor="email">Correo electrónico</Label>
               <Input id="email" type="email" placeholder="m@example.com" required />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="password">Contraseña</Label>
+              <div className="flex items-center">
+                <Label htmlFor="password">Contraseña</Label>
+                <Link href="#" className="ml-auto inline-block text-sm underline">
+                  ¿Olvidaste tu contraseña?
+                </Link>
+              </div>
               <Input id="password" type="password" required />
             </div>
             <Button type="submit" className="w-full">
-              Crear una cuenta
+              Iniciar Sesión
             </Button>
           </form>
           <div className="relative my-4">
@@ -80,17 +81,17 @@ export default function SignupPage() {
               <span className="w-full border-t" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-card px-2 text-muted-foreground">O regístrate con</span>
+              <span className="bg-card px-2 text-muted-foreground">O continuar con</span>
             </div>
           </div>
           <Button variant="outline" className="w-full">
             <GoogleIcon className="mr-2 h-4 w-4" />
-            Registrarse con Google
+            Iniciar sesión con Google
           </Button>
           <div className="mt-4 text-center text-sm">
-            ¿Ya tienes una cuenta?{' '}
-            <Link href="/login" className="underline">
-              Iniciar Sesión
+            ¿No tienes una cuenta?{' '}
+            <Link href="/signup" className="underline">
+              Regístrate
             </Link>
           </div>
         </CardContent>

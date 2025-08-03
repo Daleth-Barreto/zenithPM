@@ -33,7 +33,7 @@ export function TaskAssigner({ task, project }: TaskAssignerProps) {
       });
       setSuggestion({ person: result.suggestedPerson, reason: result.reason });
     } catch (e) {
-      setError('Failed to get suggestion. Please try again.');
+      setError('No se pudo obtener la sugerencia. Por favor, inténtalo de nuevo.');
       console.error(e);
     } finally {
       setIsLoading(false);
@@ -42,14 +42,14 @@ export function TaskAssigner({ task, project }: TaskAssignerProps) {
 
   return (
     <div className="space-y-4">
-      <h4 className="font-semibold text-sm">AI Suggestions</h4>
+      <h4 className="font-semibold text-sm">Sugerencias de IA</h4>
       <Button onClick={handleSuggest} disabled={isLoading} variant="outline" className="w-full">
         {isLoading ? (
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
         ) : (
           <Sparkles className="mr-2 h-4 w-4" />
         )}
-        Suggest Assignee
+        Sugerir Asignado
       </Button>
 
       {error && (
@@ -62,7 +62,7 @@ export function TaskAssigner({ task, project }: TaskAssignerProps) {
       {suggestion && (
         <Alert>
           <UserCheck className="h-4 w-4" />
-          <AlertTitle>Suggested: {suggestion.person}</AlertTitle>
+          <AlertTitle>Sugerido: {suggestion.person}</AlertTitle>
           <AlertDescription>{suggestion.reason}</AlertDescription>
         </Alert>
       )}

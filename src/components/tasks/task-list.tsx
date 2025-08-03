@@ -7,6 +7,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Card } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   ArrowDown,
@@ -15,6 +16,7 @@ import {
 } from 'lucide-react';
 import type { Task, Project } from '@/lib/types';
 import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 interface TaskListProps {
   project: Project;
@@ -34,6 +36,19 @@ const statusColors: Record<Task['status'], string> = {
   done: 'bg-green-500',
 };
 
+const priorityLabels: Record<Task['priority'], string> = {
+  low: 'Baja',
+  medium: 'Media',
+  high: 'Alta',
+  urgent: 'Urgente',
+};
+
+const statusLabels: Record<Task['status'], string> = {
+  backlog: 'Pendiente',
+  'in-progress': 'En progreso',
+  review: 'En revisión',
+  done: 'Hecho',
+};
 
 export function TaskList({ project }: TaskListProps) {
   return (
@@ -41,11 +56,11 @@ export function TaskList({ project }: TaskListProps) {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Task</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Priority</TableHead>
-            <TableHead>Assignee</TableHead>
-            <TableHead>Due Date</TableHead>
+            <TableHead>Tarea</TableHead>
+            <TableHead>Estado</TableHead>
+            <TableHead>Prioridad</TableHead>
+            <TableHead>Asignado a</TableHead>
+            <TableHead>Fecha de Vencimiento</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -55,13 +70,13 @@ export function TaskList({ project }: TaskListProps) {
               <TableCell>
                 <Badge variant="outline" className="flex items-center w-fit gap-2">
                   <span className={`h-2 w-2 rounded-full ${statusColors[task.status]}`} />
-                  <span className="capitalize">{task.status.replace('-', ' ')}</span>
+                  <span className="capitalize">{statusLabels[task.status]}</span>
                 </Badge>
               </TableCell>
               <TableCell>
                 <div className="flex items-center gap-2">
                   {priorityIcons[task.priority]}
-                  <span className="capitalize">{task.priority}</span>
+                  <span className="capitalize">{priorityLabels[task.priority]}</span>
                 </div>
               </TableCell>
               <TableCell>
@@ -74,11 +89,11 @@ export function TaskList({ project }: TaskListProps) {
                     <span>{task.assignee.name}</span>
                   </div>
                 ) : (
-                  <span className="text-muted-foreground">Unassigned</span>
+                  <span className="text-muted-foreground">Sin asignar</span>
                 )}
               </TableCell>
               <TableCell>
-                {task.dueDate ? format(task.dueDate, 'MMM d, yyyy') : 'N/A'}
+                {task.dueDate ? format(task.dueDate, 'd MMM, yyyy', { locale: es }) : 'N/A'}
               </TableCell>
             </TableRow>
           ))}

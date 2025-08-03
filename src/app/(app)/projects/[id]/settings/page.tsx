@@ -13,23 +13,23 @@ export default function ProjectSettingsPage({ params }: { params: { id: string }
   const project = getProjectById(params.id);
 
   if (!project) {
-    return <div>Project not found</div>;
+    return <div>Proyecto no encontrado</div>;
   }
 
   return (
     <div className="p-4 md:p-8 space-y-8">
       <Card>
         <CardHeader>
-          <CardTitle>General Settings</CardTitle>
-          <CardDescription>Update your project's name and description.</CardDescription>
+          <CardTitle>Configuración General</CardTitle>
+          <CardDescription>Actualiza el nombre y la descripción de tu proyecto.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="projectName">Project Name</Label>
+            <Label htmlFor="projectName">Nombre del Proyecto</Label>
             <Input id="projectName" defaultValue={project.name} />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="projectDescription">Project Description</Label>
+            <Label htmlFor="projectDescription">Descripción del Proyecto</Label>
             <Textarea id="projectDescription" defaultValue={project.description} rows={3} />
           </div>
         </CardContent>
@@ -37,8 +37,8 @@ export default function ProjectSettingsPage({ params }: { params: { id: string }
 
       <Card>
         <CardHeader>
-          <CardTitle>Team Management</CardTitle>
-          <CardDescription>Manage team members and their roles.</CardDescription>
+          <CardTitle>Gestión de Equipo</CardTitle>
+          <CardDescription>Gestiona los miembros del equipo y sus roles.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-4">
@@ -61,7 +61,7 @@ export default function ProjectSettingsPage({ params }: { params: { id: string }
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="admin">Admin</SelectItem>
-                      <SelectItem value="member">Member</SelectItem>
+                      <SelectItem value="member">Miembro</SelectItem>
                     </SelectContent>
                   </Select>
                   <Button variant="ghost" size="icon" className="text-muted-foreground">
@@ -73,13 +73,13 @@ export default function ProjectSettingsPage({ params }: { params: { id: string }
           </div>
           <Separator />
           <div>
-            <h4 className="font-medium mb-2">Invite Member</h4>
+            <h4 className="font-medium mb-2">Invitar Miembro</h4>
             <div className="flex gap-2">
-              <Input type="email" placeholder="new.member@example.com" />
-              <Button>Send Invite</Button>
+              <Input type="email" placeholder="nuevo.miembro@example.com" />
+              <Button>Enviar Invitación</Button>
             </div>
             <p className="text-xs text-muted-foreground mt-2">
-              Team members will be invited to join this project via email.
+              Los miembros del equipo serán invitados a unirse a este proyecto por correo electrónico.
             </p>
           </div>
         </CardContent>
@@ -87,11 +87,11 @@ export default function ProjectSettingsPage({ params }: { params: { id: string }
 
       <Card className="border-destructive">
         <CardHeader>
-          <CardTitle className="text-destructive">Danger Zone</CardTitle>
-          <CardDescription>These actions are irreversible. Please proceed with caution.</CardDescription>
+          <CardTitle className="text-destructive">Zona de Peligro</CardTitle>
+          <CardDescription>Estas acciones son irreversibles. Procede con precaución.</CardDescription>
         </CardHeader>
         <CardContent>
-          <Button variant="destructive">Delete Project</Button>
+          <Button variant="destructive">Eliminar Proyecto</Button>
         </CardContent>
       </Card>
     </div>

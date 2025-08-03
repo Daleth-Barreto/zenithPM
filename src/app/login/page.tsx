@@ -13,6 +13,10 @@ import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { getFirebaseAuthErrorMessage } from '@/lib/firebase-errors';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 
 function GoogleIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -43,27 +47,37 @@ function GoogleIcon(props: React.SVGProps<SVGSVGElement>) {
   );
 }
 
+const loginSchema = z.object({
+  email: z.string().email({ message: "Por favor, introduce un correo electrónico válido." }),
+  password: z.string().min(1, { message: "La contraseña no puede estar vacía." }),
+});
+
 export default function LoginPage() {
   const router = useRouter();
-  const { user, signIn, signInWithGoogle } = useAuth();
+  const { user, signIn, signInWithGoogle, loading: authLoading } = useAuth();
   const { toast } = useToast();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
+  const form = useForm<z.infer<typeof loginSchema>>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: '',
+      password: '',
+    },
+  });
+
   useEffect(() => {
-    if (user) {
+    if (!authLoading && user) {
       router.push('/dashboard');
     }
-  }, [user, router]);
+  }, [user, authLoading, router]);
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
+  const handleLogin = async (values: z.infer<typeof loginSchema>) => {
+    setIsSubmitting(true);
     try {
-      await signIn(email, password);
-      // Redirection is now handled by the AuthProvider/useEffect
+      await signIn(values.email, values.password);
+      // AuthProvider handles redirection
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -71,7 +85,7 @@ export default function LoginPage() {
         description: getFirebaseAuthErrorMessage(error.code),
       });
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -79,7 +93,7 @@ export default function LoginPage() {
     setIsGoogleLoading(true);
     try {
       await signInWithGoogle();
-      // Redirection is now handled by the AuthProvider/useEffect
+      // AuthProvider handles redirection
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -90,6 +104,8 @@ export default function LoginPage() {
       setIsGoogleLoading(false);
     }
   };
+  
+  const isLoading = isSubmitting || isGoogleLoading;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
@@ -104,40 +120,53 @@ export default function LoginPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleLogin} className="grid gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="email">Correo electrónico</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="m@example.com"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                disabled={isLoading || isGoogleLoading}
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(handleLogin)} className="grid gap-4">
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Correo electrónico</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="m@example.com"
+                        {...field}
+                        disabled={isLoading}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
-            <div className="grid gap-2">
-              <div className="flex items-center">
-                <Label htmlFor="password">Contraseña</Label>
-                <Link href="#" className="ml-auto inline-block text-sm underline">
-                  ¿Olvidaste tu contraseña?
-                </Link>
-              </div>
-              <Input
-                id="password"
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={isLoading || isGoogleLoading}
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                     <div className="flex items-center">
+                        <FormLabel>Contraseña</FormLabel>
+                        <Link href="#" className="ml-auto inline-block text-sm underline">
+                          ¿Olvidaste tu contraseña?
+                        </Link>
+                      </div>
+                    <FormControl>
+                      <Input 
+                        type="password"
+                        {...field} 
+                        disabled={isLoading}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
-            <Button type="submit" className="w-full" disabled={isLoading || isGoogleLoading}>
-              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Iniciar Sesión
-            </Button>
-          </form>
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Iniciar Sesión
+              </Button>
+            </form>
+          </Form>
           <div className="relative my-4">
             <div className="absolute inset-0 flex items-center">
               <span className="w-full border-t" />
@@ -146,7 +175,7 @@ export default function LoginPage() {
               <span className="bg-card px-2 text-muted-foreground">O continuar con</span>
             </div>
           </div>
-          <Button variant="outline" className="w-full" onClick={handleGoogleLogin} disabled={isLoading || isGoogleLoading}>
+          <Button variant="outline" className="w-full" onClick={handleGoogleLogin} disabled={isLoading}>
             {isGoogleLoading ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (

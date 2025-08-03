@@ -13,6 +13,11 @@ import { useAuth } from '@/contexts/auth-context';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { getFirebaseAuthErrorMessage } from '@/lib/firebase-errors';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+
 
 function GoogleIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -43,28 +48,44 @@ function GoogleIcon(props: React.SVGProps<SVGSVGElement>) {
   );
 }
 
+const signupSchema = z.object({
+  fullName: z.string().min(2, { message: "El nombre debe tener al menos 2 caracteres." }),
+  email: z.string().email({ message: "Por favor, introduce un correo electrónico válido." }),
+  password: z.string()
+    .min(8, { message: "La contraseña debe tener al menos 8 caracteres." })
+    .regex(/[A-Z]/, { message: "La contraseña debe contener al menos una mayúscula." })
+    .regex(/[a-z]/, { message: "La contraseña debe contener al menos una minúscula." })
+    .regex(/[0-9]/, { message: "La contraseña debe contener al menos un número." })
+    .regex(/[^A-Za-z0-9]/, { message: "La contraseña debe contener al menos un carácter especial." }),
+});
+
 export default function SignupPage() {
   const router = useRouter();
-  const { user, signUp, signInWithGoogle } = useAuth();
+  const { user, signUp, signInWithGoogle, loading: authLoading } = useAuth();
   const { toast } = useToast();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
+  const form = useForm<z.infer<typeof signupSchema>>({
+    resolver: zodResolver(signupSchema),
+    defaultValues: {
+      fullName: '',
+      email: '',
+      password: '',
+    },
+  });
+
   useEffect(() => {
-    if (user) {
+    if (!authLoading && user) {
       router.push('/dashboard');
     }
-  }, [user, router]);
+  }, [user, authLoading, router]);
 
-  const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
+  const handleSignup = async (values: z.infer<typeof signupSchema>) => {
+    setIsSubmitting(true);
     try {
-      await signUp(email, password, fullName);
-      // Redirection is now handled by the AuthProvider/useEffect
+      await signUp(values.email, values.password, values.fullName);
+      // AuthProvider handles redirection
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -72,7 +93,7 @@ export default function SignupPage() {
         description: getFirebaseAuthErrorMessage(error.code),
       });
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
   
@@ -80,7 +101,7 @@ export default function SignupPage() {
     setIsGoogleLoading(true);
     try {
       await signInWithGoogle();
-      // Redirection is now handled by the AuthProvider/useEffect
+      // AuthProvider handles redirection
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -92,6 +113,7 @@ export default function SignupPage() {
     }
   };
 
+  const isLoading = isSubmitting || isGoogleLoading;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
@@ -106,46 +128,65 @@ export default function SignupPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSignup} className="grid gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="full-name">Nombre completo</Label>
-              <Input
-                id="full-name"
-                placeholder="John Doe"
-                required
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                disabled={isLoading || isGoogleLoading}
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(handleSignup)} className="grid gap-4">
+              <FormField
+                control={form.control}
+                name="fullName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nombre completo</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="John Doe"
+                        {...field}
+                        disabled={isLoading}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="email">Correo electrónico</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="m@example.com"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                disabled={isLoading || isGoogleLoading}
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Correo electrónico</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="m@example.com"
+                        {...field}
+                        disabled={isLoading}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="password">Contraseña</Label>
-              <Input
-                id="password"
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={isLoading || isGoogleLoading}
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Contraseña</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="password"
+                        {...field}
+                        disabled={isLoading}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
-            <Button type="submit" className="w-full" disabled={isLoading || isGoogleLoading}>
-              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Crear una cuenta
-            </Button>
-          </form>
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Crear una cuenta
+              </Button>
+            </form>
+          </Form>
           <div className="relative my-4">
             <div className="absolute inset-0 flex items-center">
               <span className="w-full border-t" />
@@ -154,7 +195,7 @@ export default function SignupPage() {
               <span className="bg-card px-2 text-muted-foreground">O regístrate con</span>
             </div>
           </div>
-          <Button variant="outline" className="w-full" onClick={handleGoogleLogin} disabled={isLoading || isGoogleLoading}>
+          <Button variant="outline" className="w-full" onClick={handleGoogleLogin} disabled={isLoading}>
              {isGoogleLoading ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (

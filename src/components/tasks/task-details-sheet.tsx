@@ -255,6 +255,7 @@ export function TaskDetailsSheet({ task: initialTask, project, isOpen, onClose, 
         <SheetHeader>
           <div className="flex justify-between items-start">
             <div className="flex-1 pr-10">
+                <SheetTitle className="sr-only">Detalles de la Tarea</SheetTitle>
                 <Input
                     id="title"
                     value={task?.title || ''}

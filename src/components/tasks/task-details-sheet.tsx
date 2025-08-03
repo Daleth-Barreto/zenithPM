@@ -51,6 +51,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/auth-context';
@@ -93,6 +94,7 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
   const handleFieldChange = (field: keyof Task, value: any) => {
     const updatedTask = { ...currentTask, [field]: value };
     setCurrentTask(updatedTask);
+    onUpdate(updatedTask); // Immediately update parent state for reactivity
     handleDebouncedSave(updatedTask);
   }
 
@@ -293,14 +295,14 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button variant="outline" className="w-full justify-start text-left font-normal">
-                      {currentTask.dueDate ? format(currentTask.dueDate, 'PPP', { locale: es }) : 'Establecer fecha...'}
+                      {currentTask.dueDate ? format(new Date(currentTask.dueDate), 'PPP', { locale: es }) : 'Establecer fecha...'}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
                     <Calendar 
                       mode="single" 
                       locale={es}
-                      selected={currentTask.dueDate}
+                      selected={currentTask.dueDate ? new Date(currentTask.dueDate) : undefined}
                       onSelect={(date) => handleFieldChange('dueDate', date)}
                     />
                   </PopoverContent>

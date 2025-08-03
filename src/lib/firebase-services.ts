@@ -65,8 +65,7 @@ export async function createNotificationsForUsers(userIds: string[], message: st
 
 export function getNotificationsForUser(userId: string, callback: (notifications: Notification[]) => void) {
   const notifsRef = collection(db, 'notifications');
-  // Removed orderby to prevent index error. Sorting will be done client-side.
-  const q = query(notifsRef, where('userId', '==', userId), limit(50));
+  const q = query(notifsRef, where('userId', '==', userId), limit(20));
 
   const unsubscribe = onSnapshot(q, (snapshot) => {
     const notifications: Notification[] = [];
@@ -205,6 +204,7 @@ export function getTasksForProject(
       tasks.push({
         id: doc.id,
         ...data,
+        startDate: data.startDate?.toDate ? data.startDate.toDate() : undefined,
         dueDate: data.dueDate?.toDate ? data.dueDate.toDate() : undefined,
         comments: (data.comments || []).map((comment: any) => ({
             ...comment,
@@ -224,19 +224,16 @@ export function getTasksForTeam(
     teamId: string,
     callback: (tasks: (Task & { projectName: string, projectId: string })[]) => void
 ) {
-    // 1. Get the team document to find out its project and members
-    const teamQuery = query(collectionGroup(db, 'teams'), where('__name__', '==', `projects/${teamId.split('/')[1]}/teams/${teamId.split('/')[0]}`));
+    const teamDocRef = doc(db, `teams/${teamId}`);
 
-
-    const unsubscribeTeam = onSnapshot(collectionGroup(db, 'teams'), async (teamsSnapshot) => {
-        const teamDoc = teamsSnapshot.docs.find(doc => doc.id === teamId);
-
-        if (!teamDoc) {
+    const unsubscribe = onSnapshot(teamDocRef, async (teamSnap) => {
+        if (!teamSnap.exists()) {
+            console.warn(`Team with id ${teamId} does not exist.`);
             callback([]);
             return;
         }
-
-        const team = teamDoc.data() as Team;
+        
+        const team = teamSnap.data() as Team;
         const memberIds = team.memberIds || [];
         const projectId = team.projectId;
 
@@ -244,13 +241,11 @@ export function getTasksForTeam(
             callback([]);
             return;
         }
-
-        // 2. Get the project name
+        
         const projectRef = doc(db, 'projects', projectId);
         const projectSnap = await getDoc(projectRef);
         const projectName = projectSnap.exists() ? projectSnap.data().name : 'Unknown Project';
 
-        // 3. Query all tasks in that project assigned to any team member
         const tasksRef = collection(db, 'projects', projectId, 'tasks');
         const tasksQuery = query(tasksRef, where('assignee.id', 'in', memberIds));
 
@@ -265,11 +260,13 @@ export function getTasksForTeam(
             console.error("Error fetching tasks for team:", error);
             callback([]);
         });
+
     }, (error) => {
         console.error("Error fetching team document:", error);
+        callback([]);
     });
 
-    return unsubscribeTeam;
+    return unsubscribe;
 }
 
 
@@ -357,9 +354,12 @@ export async function addCommentToTask(projectId: string, taskId: string, text: 
         text: text,
         authorId: user.uid,
         authorName: user.displayName || 'Usuario',
-        authorAvatarUrl: user.photoURL || undefined,
         createdAt: new Date(),
     };
+
+    if (user.photoURL) {
+        commentData.authorAvatarUrl = user.photoURL;
+    }
     
     const newComment: Comment = {
         ...commentData,

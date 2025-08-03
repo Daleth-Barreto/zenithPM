@@ -84,7 +84,7 @@ export function TeamTaskList({ teamId }: TeamTaskListProps) {
                 </CardDescription>
             </CardHeader>
             <CardContent>
-                <Accordion type="multiple" className="w-full space-y-4">
+                <Accordion type="multiple" className="w-full space-y-4" defaultValue={Object.keys(groupedTasks)}>
                     {Object.entries(groupedTasks).map(([projectName, projectTasks]) => (
                         <AccordionItem value={projectName} key={projectName} className="border bg-muted/20 rounded-lg px-4">
                             <AccordionTrigger className="hover:no-underline">
@@ -101,7 +101,7 @@ export function TeamTaskList({ teamId }: TeamTaskListProps) {
                                             <div className="flex items-center justify-between p-3 rounded-md border bg-background hover:bg-muted/50 transition-colors">
                                                 <div>
                                                     <p className="font-medium">{task.title}</p>
-                                                    <p className="text-sm text-muted-foreground">{task.description}</p>
+                                                    {task.description && <p className="text-sm text-muted-foreground line-clamp-1">{task.description}</p>}
                                                 </div>
                                                 <div className="flex items-center gap-4">
                                                     <Badge variant="outline" className="capitalize">

@@ -44,6 +44,24 @@ export async function createNotification(notification: Omit<Notification, 'id' |
     });
 }
 
+export async function createNotificationsForUsers(userIds: string[], message: string, link: string) {
+    const batch = writeBatch(db);
+    const notificationsRef = collection(db, 'notifications');
+
+    userIds.forEach(userId => {
+        const newNotifRef = doc(notificationsRef);
+        batch.set(newNotifRef, {
+            userId,
+            message,
+            link,
+            createdAt: serverTimestamp(),
+            read: false,
+        });
+    });
+
+    await batch.commit();
+}
+
 
 // --- USERS ---
 export async function checkUserExistsByEmail(email: string): Promise<boolean> {
@@ -169,6 +187,76 @@ export function getTasksForProject(
 
   return unsubscribe;
 }
+
+export function getTasksForTeam(
+  teamId: string,
+  callback: (tasks: (Task & { projectName: string, projectId: string })[]) => void
+) {
+    let teamUnsubscribe: () => void;
+    let projectsUnsubscribe: (() => void)[] = [];
+
+    // 1. Get the team document to find its members and project ID
+    const teamQuery = query(collection(db, 'teams'), where('id', '==', teamId));
+    teamUnsubscribe = onSnapshot(query(collectionGroup(db, 'teams'), where('id', '==', teamId)), async (teamSnapshot) => {
+        if (teamSnapshot.empty) {
+            callback([]);
+            return;
+        }
+
+        const teamDoc = teamSnapshot.docs[0];
+        const teamData = teamDoc.data() as Team;
+        const memberIds = teamData.memberIds || [];
+        const projectId = teamData.projectId;
+
+        if (memberIds.length === 0 || !projectId) {
+            callback([]);
+            return;
+        }
+
+        // 2. Get the project name
+        const projectRef = doc(db, 'projects', projectId);
+        const projectSnap = await getDoc(projectRef);
+        const projectName = projectSnap.exists() ? projectSnap.data().name : "Proyecto Desconocido";
+
+        // 3. Unsubscribe from previous project task listeners
+        projectsUnsubscribe.forEach(unsub => unsub());
+        projectsUnsubscribe = [];
+
+        // 4. Listen for tasks in that project assigned to team members
+        const tasksRef = collection(db, 'projects', projectId, 'tasks');
+        const tasksQuery = query(tasksRef, where('assignee.id', 'in', memberIds));
+        
+        const tasksUnsubscribe = onSnapshot(tasksQuery, (tasksSnapshot) => {
+            const fetchedTasks: (Task & { projectName: string, projectId: string })[] = [];
+            tasksSnapshot.forEach(doc => {
+                const data = doc.data();
+                fetchedTasks.push({
+                    id: doc.id,
+                    ...data,
+                    dueDate: data.dueDate?.toDate ? data.dueDate.toDate() : undefined,
+                    comments: (data.comments || []).map((comment: any) => ({
+                        ...comment,
+                        createdAt: comment.createdAt?.toDate ? comment.createdAt.toDate() : new Date(),
+                    })),
+                    projectName: projectName,
+                    projectId: projectId,
+                } as (Task & { projectName: string, projectId: string }));
+            });
+            callback(fetchedTasks);
+        });
+        projectsUnsubscribe.push(tasksUnsubscribe);
+
+    }, (error) => {
+        console.error("Error fetching team for tasks:", error);
+    });
+
+    // Return a function to unsubscribe from all listeners
+    return () => {
+        if (teamUnsubscribe) teamUnsubscribe();
+        projectsUnsubscribe.forEach(unsub => unsub());
+    };
+}
+
 
 export async function updateTaskStatus(projectId: string, taskId: string, newStatus: TaskStatus, order: number) {
   const taskRef = doc(db, 'projects', projectId, 'tasks', taskId);

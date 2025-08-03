@@ -92,64 +92,63 @@ export function getProjectsForUser(
   callback: (projects: Project[]) => void
 ) {
   const projectsMap = new Map<string, Project>();
+  let directUnsubscribe: () => void;
+  let teamsUnsubscribe: () => void;
+  let teamProjectsUnsubscribes: (() => void)[] = [];
 
   const updateCallback = () => {
     callback(Array.from(projectsMap.values()).sort((a, b) => a.name.localeCompare(b.name)));
   };
 
-  // Listener for projects where the user is a direct member
-  const directMembershipQuery = query(collection(db, 'projects'), where('teamIds', 'array-contains', userId));
-  const directUnsubscribe = onSnapshot(directMembershipQuery, (snapshot) => {
-    snapshot.docChanges().forEach((change) => {
-      if (change.type === "removed") {
-        projectsMap.delete(change.doc.id);
-      } else {
-        projectsMap.set(change.doc.id, { id: change.doc.id, ...change.doc.data() } as Project);
-      }
-    });
-    updateCallback();
-  });
-
-  // Listener for teams and their associated projects
-  const teamsRef = collection(db, 'teams');
-  const teamsQuery = query(teamsRef, where('memberIds', 'array-contains', userId));
-  
-  let teamProjectsUnsubscribes: (() => void)[] = [];
-
-  const teamsUnsubscribe = onSnapshot(teamsQuery, (teamsSnapshot) => {
-    const userTeamIds = teamsSnapshot.docs.map(doc => doc.id);
-
-    // Unsubscribe from all previous team-based project listeners
-    teamProjectsUnsubscribes.forEach(unsub => unsub());
-    teamProjectsUnsubscribes = [];
-    
-    // Clean up projects that might have been associated with a team the user left
-    // This is complex, so for now we rely on the new queries to rebuild the map
-    // A more robust solution might track which projects are from which teams.
-
-    if (userTeamIds.length > 0) {
-      const teamMembershipQuery = query(collection(db, 'projects'), where('associatedTeamIds', 'array-contains-any', userTeamIds));
-      const teamProjectsUnsubscribe = onSnapshot(teamMembershipQuery, (projectSnapshot) => {
-         projectSnapshot.docChanges().forEach((change) => {
-          if (change.type === "removed") {
-            projectsMap.delete(change.doc.id);
-          } else {
-            projectsMap.set(change.doc.id, { id: change.doc.id, ...change.doc.data() } as Project);
-          }
-        });
-        updateCallback();
+  const setupListeners = () => {
+    // Listener for projects where the user is a direct member
+    const directMembershipQuery = query(collection(db, 'projects'), where('teamIds', 'array-contains', userId));
+    directUnsubscribe = onSnapshot(directMembershipQuery, (snapshot) => {
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === "removed") {
+          projectsMap.delete(change.doc.id);
+        } else {
+          projectsMap.set(change.doc.id, { id: change.doc.id, ...change.doc.data() } as Project);
+        }
       });
-      teamProjectsUnsubscribes.push(teamProjectsUnsubscribe);
-    } else {
-      // If user is not in any teams, just trigger the update with direct projects
       updateCallback();
-    }
-  });
+    }, console.error);
 
-  // Return a function that unsubscribes from all listeners
+    // Listener for teams and their associated projects
+    const teamsRef = collection(db, 'teams');
+    const teamsQuery = query(teamsRef, where('memberIds', 'array-contains', userId));
+    
+    teamsUnsubscribe = onSnapshot(teamsQuery, (teamsSnapshot) => {
+      const userTeamIds = teamsSnapshot.docs.map(doc => doc.id);
+
+      // Unsubscribe from all previous team-based project listeners
+      teamProjectsUnsubscribes.forEach(unsub => unsub());
+      teamProjectsUnsubscribes = [];
+      
+      if (userTeamIds.length > 0) {
+        const teamMembershipQuery = query(collection(db, 'projects'), where('associatedTeamIds', 'array-contains-any', userTeamIds));
+        const teamProjectsUnsubscribe = onSnapshot(teamMembershipQuery, (projectSnapshot) => {
+           projectSnapshot.docChanges().forEach((change) => {
+            if (change.type === "removed") {
+              projectsMap.delete(change.doc.id);
+            } else {
+              projectsMap.set(change.doc.id, { id: change.doc.id, ...change.doc.data() } as Project);
+            }
+          });
+          updateCallback();
+        }, console.error);
+        teamProjectsUnsubscribes.push(teamProjectsUnsubscribe);
+      } else {
+        updateCallback();
+      }
+    }, console.error);
+  };
+  
+  setupListeners();
+
   return () => {
-    directUnsubscribe();
-    teamsUnsubscribe();
+    directUnsubscribe?.();
+    teamsUnsubscribe?.();
     teamProjectsUnsubscribes.forEach(unsub => unsub());
   };
 }
@@ -326,6 +325,37 @@ export async function addCommentToTask(projectId: string, taskId: string, commen
         comments: arrayUnion(newComment)
     });
 }
+
+export async function updateCommentInTask(projectId: string, taskId: string, commentId: string, newText: string) {
+  const taskRef = doc(db, 'projects', projectId, 'tasks', taskId);
+  await runTransaction(db, async (transaction) => {
+    const taskSnap = await transaction.get(taskRef);
+    if (!taskSnap.exists()) {
+      throw new Error("La tarea no existe.");
+    }
+    const taskData = taskSnap.data();
+    const comments = (taskData.comments || []) as Comment[];
+    const updatedComments = comments.map(c => 
+      c.id === commentId ? { ...c, text: newText } : c
+    );
+    transaction.update(taskRef, { comments: updatedComments });
+  });
+}
+
+export async function deleteCommentFromTask(projectId: string, taskId: string, commentId: string) {
+  const taskRef = doc(db, 'projects', projectId, 'tasks', taskId);
+  await runTransaction(db, async (transaction) => {
+    const taskSnap = await transaction.get(taskRef);
+    if (!taskSnap.exists()) {
+      throw new Error("La tarea no existe.");
+    }
+    const taskData = taskSnap.data();
+    const comments = (taskData.comments || []) as Comment[];
+    const updatedComments = comments.filter(c => c.id !== commentId);
+    transaction.update(taskRef, { comments: updatedComments });
+  });
+}
+
 
 // --- TEAM MEMBERS (PROJECT) ---
 export async function inviteTeamMember(projectId: string, project: Project, email: string, currentUser: User): Promise<{ success: true } | { success: false; inviteLink: string }> {

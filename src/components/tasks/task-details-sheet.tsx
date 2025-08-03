@@ -35,15 +35,17 @@ import {
   Send,
   MessageSquare,
   Edit,
+  MoreHorizontal,
 } from 'lucide-react';
 import type { Task, Project, TaskPriority, TaskStatus, Subtask, SubtaskStatus, Team, Comment } from '@/lib/types';
 import { Calendar } from '../ui/calendar';
 import { Popover, PopoverTrigger, PopoverContent } from '../ui/popover';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { format, formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { TaskAssigner } from '../ai/task-assigner';
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { deleteTask, updateTask, addCommentToTask, getTeamById } from '@/lib/firebase-services';
+import { deleteTask, updateTask, addCommentToTask, getTeamById, updateCommentInTask, deleteCommentFromTask } from '@/lib/firebase-services';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -92,6 +94,8 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
   const [newComment, setNewComment] = useState('');
   const [associatedTeams, setAssociatedTeams] = useState<Team[]>([]);
   const [assignedTeam, setAssignedTeam] = useState<Team | null>(null);
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editingCommentText, setEditingCommentText] = useState('');
 
   const { toast } = useToast();
   const { user } = useAuth();
@@ -205,6 +209,39 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
 
     await addCommentToTask(project.id, currentTask.id, commentData);
     setNewComment('');
+  }
+
+  const handleEditComment = (comment: Comment) => {
+    setEditingCommentId(comment.id);
+    setEditingCommentText(comment.text);
+  }
+
+  const handleCancelEditComment = () => {
+    setEditingCommentId(null);
+    setEditingCommentText('');
+  }
+
+  const handleUpdateComment = async () => {
+    if (!editingCommentId || !currentTask) return;
+    try {
+        await updateCommentInTask(project.id, currentTask.id, editingCommentId, editingCommentText);
+        handleCancelEditComment();
+        toast({ title: "Comentario actualizado" });
+    } catch (error) {
+        console.error("Error updating comment:", error);
+        toast({ variant: 'destructive', title: "Error", description: "No se pudo actualizar el comentario." });
+    }
+  }
+
+  const handleDeleteComment = async (commentId: string) => {
+      if (!currentTask) return;
+      try {
+        await deleteCommentFromTask(project.id, currentTask.id, commentId);
+        toast({ title: "Comentario eliminado" });
+      } catch (error) {
+        console.error("Error deleting comment:", error);
+        toast({ variant: 'destructive', title: "Error", description: "No se pudo eliminar el comentario." });
+      }
   }
 
   const handleSaveAndClose = async () => {
@@ -348,8 +385,8 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
                     Comentarios
                   </Label>
                   <div className="space-y-4">
-                    {[...(currentTask.comments || [])].sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map(comment => (
-                        <div key={comment.id} className="flex gap-3">
+                    {[...(currentTask.comments || [])].sort((a,b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()).map(comment => (
+                        <div key={comment.id} className="flex gap-3 group">
                         <Avatar>
                             <AvatarImage src={comment.authorAvatarUrl} />
                             <AvatarFallback>{comment.authorName.charAt(0)}</AvatarFallback>
@@ -357,11 +394,36 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
                         <div className="p-3 rounded-lg bg-muted flex-1">
                             <div className="flex justify-between items-center">
                                 <p className="text-sm font-semibold">{comment.authorName}</p>
-                                <p className="text-xs text-muted-foreground">
-                                    {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true, locale: es })}
-                                </p>
+                                <div className="flex items-center">
+                                    <p className="text-xs text-muted-foreground mr-2">
+                                        {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true, locale: es })}
+                                    </p>
+                                    {user?.uid === comment.authorId && (
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100">
+                                                    <MoreHorizontal className="h-4 w-4" />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuItem onClick={() => handleEditComment(comment)}>Editar</DropdownMenuItem>
+                                                <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteComment(comment.id)}>Eliminar</DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    )}
+                                </div>
                             </div>
-                            <p className="text-sm mt-1 whitespace-pre-wrap">{comment.text}</p>
+                            {editingCommentId === comment.id ? (
+                                <div className="mt-2">
+                                    <Textarea value={editingCommentText} onChange={e => setEditingCommentText(e.target.value)} className="mb-2" />
+                                    <div className="flex justify-end gap-2">
+                                        <Button size="sm" variant="ghost" onClick={handleCancelEditComment}>Cancelar</Button>
+                                        <Button size="sm" onClick={handleUpdateComment}>Guardar</Button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <p className="text-sm mt-1 whitespace-pre-wrap">{comment.text}</p>
+                            )}
                         </div>
                         </div>
                     ))}

@@ -11,10 +11,11 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
   updateProfile,
+  deleteUser,
 } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import type { SignUpData, SignInData } from '@/lib/types';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, deleteDoc } from 'firebase/firestore';
 
 interface AuthContextType {
   user: User | null;
@@ -23,6 +24,7 @@ interface AuthContextType {
   signUp: (email: SignUpData['email'], password: SignUpData['password'], fullName: SignUpData['fullName']) => Promise<any>;
   signOut: () => Promise<void>;
   signInWithGoogle: () => Promise<any>;
+  deleteUserAccount: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -80,6 +82,32 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return firebaseSignOut(auth);
   };
 
+  const deleteUserAccount = async () => {
+    if (!auth.currentUser) {
+      throw new Error("No hay un usuario autenticado para eliminar.");
+    }
+    const userToDelete = auth.currentUser;
+    try {
+      // Step 1: Delete user from Authentication
+      await deleteUser(userToDelete);
+      
+      // Step 2: Delete user data from Firestore
+      const userDocRef = doc(db, 'users', userToDelete.uid);
+      await deleteDoc(userDocRef);
+
+      // Note: This does not delete user-generated content like projects or tasks they own.
+      // A more robust solution would use a Cloud Function to clean up all associated data.
+      
+    } catch (error: any) {
+        console.error("Error al eliminar la cuenta:", error);
+        // Re-throw the error so the UI can handle it (e.g., show a toast)
+        if (error.code === 'auth/requires-recent-login') {
+            throw new Error('auth/requires-recent-login');
+        }
+        throw new Error('No se pudo eliminar la cuenta.');
+    }
+  };
+
   const value = {
     user,
     loading,
@@ -87,6 +115,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     signUp,
     signOut,
     signInWithGoogle,
+    deleteUserAccount,
   };
 
   return <AuthContext.Provider value={value}>{!loading && children}</AuthContext.Provider>;

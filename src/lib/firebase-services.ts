@@ -269,6 +269,50 @@ export function getTasksForTeam(
     return unsubscribe;
 }
 
+export function getTasksForUser(
+    userId: string,
+    callback: (tasks: (Task & { projectName: string, projectId: string })[]) => void
+) {
+    const tasksRef = collectionGroup(db, 'tasks');
+    const q = query(tasksRef, where('assignee.id', '==', userId));
+
+    const unsubscribe = onSnapshot(q, async (tasksSnapshot) => {
+        const userTasks: (Task & { projectName: string, projectId: string })[] = [];
+        
+        // Use a map to cache project names to avoid refetching for each task
+        const projectNamesCache = new Map<string, string>();
+
+        for (const taskDoc of tasksSnapshot.docs) {
+            const taskData = taskDoc.data() as Task;
+            const projectId = taskDoc.ref.parent.parent?.id;
+
+            if (!projectId) continue;
+
+            let projectName = projectNamesCache.get(projectId);
+
+            if (!projectName) {
+                const projectRef = doc(db, 'projects', projectId);
+                const projectSnap = await getDoc(projectRef);
+                projectName = projectSnap.exists() ? projectSnap.data().name : 'Unknown Project';
+                projectNamesCache.set(projectId, projectName);
+            }
+
+            userTasks.push({
+                ...taskData,
+                id: taskDoc.id,
+                projectName,
+                projectId
+            });
+        }
+        callback(userTasks);
+    }, (error) => {
+        console.error("Error fetching tasks for user:", error);
+        callback([]);
+    });
+
+    return unsubscribe;
+}
+
 
 
 
@@ -350,7 +394,7 @@ export async function deleteTask(projectId: string, taskId: string) {
 export async function addCommentToTask(projectId: string, taskId: string, text: string, user: User) {
     const taskRef = doc(db, 'projects', projectId, 'tasks', taskId);
 
-    const commentData: Omit<Comment, 'id'> = {
+    const commentData: Omit<Comment, 'id' | 'authorAvatarUrl'> & { authorAvatarUrl?: string } = {
         text: text,
         authorId: user.uid,
         authorName: user.displayName || 'Usuario',
@@ -591,7 +635,9 @@ export async function addMemberToTeam(projectId: string, teamId: string, email: 
   const teamData = teamSnap.data() as Team;
 
   const isAlreadyMember = teamData.members.some(m => m.email.toLowerCase() === email.toLowerCase());
-  if (isAlreadyMember) throw new Error("Este usuario ya es miembro del equipo.");
+  if (isAlreadyMember) {
+    throw new Error("Este usuario ya es miembro del equipo.");
+  }
 
   const invitationsRef = collection(db, 'invitations');
   const q = query(invitationsRef, 

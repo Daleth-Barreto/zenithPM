@@ -7,6 +7,7 @@ import {
   FolderKanban,
   User,
   ChevronDown,
+  CheckSquare,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -18,7 +19,6 @@ import {
   SidebarMenuButton,
   SidebarMenuSub,
   SidebarMenuSubButton,
-  SidebarMenuSubItem,
   useSidebar
 } from '@/components/ui/sidebar';
 import { Logo } from '@/components/logo';
@@ -80,6 +80,19 @@ export function AppSidebar() {
               <Link href="/dashboard">
                 <LayoutDashboard />
                 <span className={cn(isSidebarCollapsed && "hidden")}>Panel</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+
+           <SidebarMenuItem>
+            <SidebarMenuButton
+              asChild
+              isActive={isActive('/my-tasks')}
+              tooltip={{ children: 'Mis Tareas' }}
+            >
+              <Link href="/my-tasks">
+                <CheckSquare />
+                <span className={cn(isSidebarCollapsed && "hidden")}>Mis Tareas</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>

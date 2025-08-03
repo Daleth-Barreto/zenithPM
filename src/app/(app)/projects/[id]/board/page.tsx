@@ -24,7 +24,7 @@ export default function ProjectBoardPage() {
   }
 
   return (
-    <div className="h-full overflow-auto p-4 md:p-8">
+    <div className="h-full overflow-x-auto p-4 md:p-8">
         <KanbanBoard project={project} />
     </div>
   );

@@ -50,11 +50,21 @@ export default function ProjectSettingsPage() {
       const unsubscribe = getProjectById(projectId, (p) => {
         if(p) {
           setProject(p);
-          // Fetch full team objects based on associatedTeamIds
-          const teamPromises = p.associatedTeamIds?.map(id => getTeamById(id)) || [];
-          Promise.all(teamPromises).then(teams => {
-            setAssociatedTeams(teams.filter((t): t is Team => t !== null));
-          });
+          if (p.associatedTeamIds && p.associatedTeamIds.length > 0) {
+            const unsubscribes = p.associatedTeamIds.map(teamId => {
+              return getTeamById(teamId, team => {
+                if (team) {
+                  setAssociatedTeams(prevTeams => {
+                    const otherTeams = prevTeams.filter(t => t.id !== teamId);
+                    return [...otherTeams, team].sort((a,b) => a.name.localeCompare(b.name));
+                  });
+                }
+              });
+            });
+            // Need a way to unsubscribe from all of these
+          } else {
+            setAssociatedTeams([]);
+          }
         }
         setLoading(false)
       });
@@ -231,7 +241,7 @@ export default function ProjectSettingsPage() {
                     </Avatar>
                     <div>
                       <p className="font-medium">{team.name}</p>
-                      <p className="text-sm text-muted-foreground">{team.members.length} miembros</p>
+                      <p className="text-sm text-muted-foreground">{team.members?.length || 0} miembros</p>
                     </div>
                   </div>
                   <Button variant="ghost" size="icon" onClick={() => handleRemoveTeamFromProject(team.id)} disabled={!canManageTeam}>

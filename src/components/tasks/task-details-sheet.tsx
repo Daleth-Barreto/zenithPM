@@ -104,15 +104,12 @@ export function TaskDetailsSheet({ task: initialTask, project, isOpen, onClose, 
 
   useEffect(() => {
     setTask(initialTask);
-  }, [initialTask]);
-
-  useEffect(() => {
-    if (task && task.assignedTeamId) {
-      getTeamById(task.assignedTeamId).then(setAssignedTeam);
+    if (initialTask?.assignedTeamId) {
+      getTeamById(initialTask.assignedTeamId).then(setAssignedTeam);
     } else {
       setAssignedTeam(null);
     }
-  }, [task]);
+  }, [initialTask]);
 
   useEffect(() => {
     if (project.associatedTeamIds && project.associatedTeamIds.length > 0) {
@@ -681,15 +678,13 @@ export function TaskDetailsSheet({ task: initialTask, project, isOpen, onClose, 
       if (!open) {
         setIsEditing(false); // Reset edit mode on close
         onClose();
-      } else {
-        onClose(); // Should not be called, but for safety
       }
     }}>
       <SheetContent className="w-full sm:max-w-xl md:max-w-2xl flex flex-col">
         <SheetHeader>
           <div className="flex justify-between items-start">
             <div className="flex-1">
-                 <SheetTitle className="text-2xl pr-10">{task?.title}</SheetTitle>
+                <SheetTitle className="text-2xl pr-10">{initialTask?.title}</SheetTitle>
                 <SheetDescription>
                     En el proyecto <span className="font-semibold text-primary">{project.name}</span>
                 </SheetDescription>

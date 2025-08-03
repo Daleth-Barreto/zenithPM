@@ -18,7 +18,6 @@ export function ProjectHeader({ project }: ProjectHeaderProps) {
   const getActiveTab = () => {
     if (pathname.endsWith('/board')) return 'board';
     if (pathname.endsWith('/tasks')) return 'tasks';
-    if (pathname.endsWith('/brainstorm')) return 'brainstorm';
     if (pathname.endsWith('/settings')) return 'settings';
     return 'board';
   };
@@ -26,7 +25,6 @@ export function ProjectHeader({ project }: ProjectHeaderProps) {
   const tabs = [
     { id: 'board', label: 'Tablero', href: `/projects/${project.id}/board` },
     { id: 'tasks', label: 'Tareas', href: `/projects/${project.id}/tasks` },
-    { id: 'brainstorm', label: 'Ideas', href: `/projects/${project.id}/brainstorm` },
     { id: 'settings', label: 'Configuración', href: `/projects/${project.id}/settings` },
   ];
 

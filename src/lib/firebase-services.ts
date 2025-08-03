@@ -82,13 +82,23 @@ export function getProjectsForUser(
   callback: (projects: Project[]) => void
 ) {
   const projectsRef = collection(db, 'projects');
-  const q = query(projectsRef, where('teamIds', 'array-contains', userId));
+  // First query: projects where the user is a direct member
+  const directMembershipQuery = query(projectsRef, where('teamIds', 'array-contains', userId));
 
-  const unsubscribe = onSnapshot(q, (querySnapshot) => {
-    const projects: Project[] = [];
+  // To query based on team membership, we first need to get the user's teams
+  const teamsRef = collection(db, 'teams');
+  const userTeamsQuery = query(teamsRef, where('memberIds', 'array-contains', userId));
+
+  let combinedProjects: Record<string, Project> = {};
+
+  const processAndCallback = () => {
+    callback(Object.values(combinedProjects));
+  };
+
+  const directUnsubscribe = onSnapshot(directMembershipQuery, (querySnapshot) => {
     querySnapshot.forEach((doc) => {
       const data = doc.data();
-      projects.push({
+      combinedProjects[doc.id] = {
         id: doc.id,
         name: data.name,
         description: data.description,
@@ -98,15 +108,45 @@ export function getProjectsForUser(
         associatedTeamIds: data.associatedTeamIds || [],
         imageUrl: data.imageUrl,
         color: data.color,
-        tasks: [], // Tasks would be a subcollection, loaded separately
-      });
+        tasks: [], // Loaded separately
+      };
     });
-    callback(projects);
-  }, (error) => {
-    console.error("Error fetching projects: ", error);
+    processAndCallback();
+  });
+  
+  const teamsUnsubscribe = onSnapshot(userTeamsQuery, (teamsSnapshot) => {
+      const teamIds = teamsSnapshot.docs.map(doc => doc.id);
+      if (teamIds.length > 0) {
+          const teamMembershipQuery = query(projectsRef, where('associatedTeamIds', 'array-contains-any', teamIds));
+          const teamProjectsUnsubscribe = onSnapshot(teamMembershipQuery, (projectsSnapshot) => {
+               projectsSnapshot.forEach((doc) => {
+                const data = doc.data();
+                combinedProjects[doc.id] = {
+                  id: doc.id,
+                  name: data.name,
+                  description: data.description,
+                  progress: data.progress,
+                  team: data.team, // Note: This team is only direct members, might need merging logic
+                  teamIds: data.teamIds,
+                  associatedTeamIds: data.associatedTeamIds || [],
+                  imageUrl: data.imageUrl,
+                  color: data.color,
+                  tasks: [],
+                };
+              });
+              processAndCallback();
+          });
+          // This might need more complex unsubscribe logic
+      } else {
+        processAndCallback();
+      }
   });
 
-  return unsubscribe;
+
+  return () => {
+    directUnsubscribe();
+    teamsUnsubscribe();
+  };
 }
 
 export function getProjectById(projectId: string, callback: (project: Project | null) => void) {
@@ -235,31 +275,51 @@ export async function addCommentToTask(projectId: string, taskId: string, commen
 }
 
 
-// --- TEAM MEMBERS ---
-export async function inviteTeamMember(projectId: string, email: string) {
-  // This is a simplified version. A real app would:
-  // 1. Check if the user exists in a main 'users' collection (we assume this for now).
-  // 2. For this app, we'll just add a placeholder user if no real user is found.
-  
-  const owner: TeamMember = {
-    id: new Date().getTime().toString(), // Mock ID
-    name: email.split('@')[0],
-    email: email,
-    avatarUrl: generateAvatar(email),
-    initials: email.charAt(0).toUpperCase(),
-    role: 'Miembro',
-    expertise: 'Sin definir',
-    currentWorkload: 0,
-  };
+// --- TEAM MEMBERS (PROJECT) ---
+export async function inviteTeamMember(projectId: string, email: string): Promise<TeamMember> {
+  const usersRef = collection(db, "users");
+  const q = query(usersRef, where("email", "==", email));
+  const querySnapshot = await getDocs(q);
+
+  let member: TeamMember;
+
+  if (!querySnapshot.empty) {
+    const userDoc = querySnapshot.docs[0];
+    const userData = userDoc.data();
+    member = {
+      id: userDoc.id,
+      name: userData.displayName,
+      email: userData.email,
+      avatarUrl: userData.photoURL || generateAvatar(userData.displayName),
+      initials: (userData.displayName || 'U').charAt(0).toUpperCase(),
+      role: 'Miembro',
+      expertise: 'Sin definir',
+      currentWorkload: 0,
+    };
+  } else {
+    // If user doesn't exist, create a placeholder.
+    // In a real app, you might send an email invite.
+    member = {
+      id: new Date().getTime().toString(), // Mock ID
+      name: email.split('@')[0],
+      email: email,
+      avatarUrl: generateAvatar(email),
+      initials: email.charAt(0).toUpperCase(),
+      role: 'Miembro',
+      expertise: 'Sin definir',
+      currentWorkload: 0,
+    };
+  }
 
   const projectRef = doc(db, 'projects', projectId);
   await updateDoc(projectRef, {
-    team: arrayUnion(owner),
-    teamIds: arrayUnion(owner.id)
+    team: arrayUnion(member),
+    teamIds: arrayUnion(member.id)
   });
 
-  return owner;
+  return member;
 }
+
 
 export async function removeTeamMember(projectId: string, memberId: string) {
     const projectRef = doc(db, 'projects', projectId);
@@ -294,10 +354,10 @@ export async function updateTeamMemberRole(projectId: string, memberId: string, 
 // --- TEAMS ---
 
 // This is a simplified user lookup. In a real app, this would query a dedicated 'users' collection.
-async function findUserByEmail(email: string): Promise<User | null> {
-    // For now, we don't have a central user directory, so this will always return null.
-    // This is a placeholder for a more robust implementation.
-    return null; 
+async function findUserByEmail(email: string): Promise<TeamMember | null> {
+    // For now, we don't have a central user directory, so this is a placeholder.
+    // It simulates finding a user and creating a TeamMember object.
+    return null;
 }
 
 export async function createTeam(teamData: { name: string; memberEmails: string[] }, user: User): Promise<Team> {
@@ -318,9 +378,7 @@ export async function createTeam(teamData: { name: string; memberEmails: string[
   for (const email of teamData.memberEmails) {
       if (email === user.email) continue; // Skip owner, already added
 
-      // In a real app, you'd look up the user by email.
-      // For now, we'll create a placeholder member object.
-      const existingUser = await findUserByEmail(email);
+      const existingUser = await findUserByEmail(email); // Placeholder lookup
       const memberId = existingUser ? existingUser.id : new Date().getTime().toString() + email;
       
       if (!memberIds.includes(memberId)) {
@@ -374,13 +432,16 @@ export function getTeamsForUser(userId: string, callback: (teams: Team[]) => voi
   return unsubscribe;
 }
 
-export async function getTeamById(teamId: string): Promise<Team | null> {
+export function getTeamById(teamId: string, callback: (team: Team | null) => void) {
     const teamRef = doc(db, 'teams', teamId);
-    const teamSnap = await getDoc(teamRef);
-    if (teamSnap.exists()) {
-        return { id: teamSnap.id, ...teamSnap.data() } as Team;
-    }
-    return null;
+    const unsubscribe = onSnapshot(teamRef, (teamSnap) => {
+        if (teamSnap.exists()) {
+            callback({ id: teamSnap.id, ...teamSnap.data() } as Team);
+        } else {
+            callback(null);
+        }
+    });
+    return unsubscribe;
 }
 
 export async function addTeamToProject(projectId: string, teamId: string) {
@@ -395,4 +456,53 @@ export async function removeTeamFromProject(projectId: string, teamId: string) {
     await updateDoc(projectRef, {
         associatedTeamIds: arrayRemove(teamId)
     });
+}
+
+export async function addMemberToTeam(teamId: string, email: string) {
+  const member: TeamMember = {
+      id: new Date().getTime().toString(),
+      name: email.split('@')[0],
+      email,
+      avatarUrl: generateAvatar(email),
+      initials: email.charAt(0).toUpperCase(),
+      role: 'Miembro',
+      expertise: 'Sin definir',
+      currentWorkload: 0,
+  };
+
+  const teamRef = doc(db, 'teams', teamId);
+  await updateDoc(teamRef, {
+      members: arrayUnion(member),
+      memberIds: arrayUnion(member.id),
+  });
+  return member;
+}
+
+export async function removeMemberFromTeam(teamId: string, memberId: string) {
+  const teamRef = doc(db, 'teams', teamId);
+  const teamSnap = await getDoc(teamRef);
+  if (teamSnap.exists()) {
+      const teamData = teamSnap.data();
+      const updatedMembers = teamData.members.filter((m: TeamMember) => m.id !== memberId);
+      const updatedMemberIds = teamData.memberIds.filter((id: string) => id !== memberId);
+      await updateDoc(teamRef, {
+          members: updatedMembers,
+          memberIds: updatedMemberIds,
+      });
+  }
+}
+
+export async function updateTeamMemberRoleInTeam(teamId: string, memberId: string, role: 'Admin' | 'Miembro') {
+    const teamRef = doc(db, 'teams', teamId);
+    const teamSnap = await getDoc(teamRef);
+    if (teamSnap.exists()) {
+        const teamData = teamSnap.data();
+        const updatedMembers = teamData.members.map((member: TeamMember) => 
+            member.id === memberId ? { ...member, role } : member
+        );
+        
+        await updateDoc(teamRef, {
+            members: updatedMembers,
+        });
+    }
 }

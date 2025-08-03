@@ -2,7 +2,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Users, PlusCircle } from 'lucide-react';
+import { Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -11,9 +11,12 @@ import { getTeamsForUser } from '@/lib/firebase-services';
 import { useAuth } from '@/contexts/auth-context';
 import type { Team } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 export default function TeamsPage() {
   const { user } = useAuth();
+  const router = useRouter();
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -29,6 +32,7 @@ export default function TeamsPage() {
 
   const onTeamCreated = (newTeam: Team) => {
     // Listener will handle the update
+    router.push(`/teams/${newTeam.id}`);
   };
 
   return (
@@ -81,7 +85,9 @@ export default function TeamsPage() {
                     </div>
                 </CardContent>
                 <CardFooter>
-                    <Button variant="outline" className="w-full">Gestionar Equipo</Button>
+                    <Button variant="outline" className="w-full" asChild>
+                        <Link href={`/teams/${team.id}`}>Gestionar Equipo</Link>
+                    </Button>
                 </CardFooter>
             </Card>
           ))}

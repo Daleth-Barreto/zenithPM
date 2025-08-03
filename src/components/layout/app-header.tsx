@@ -9,6 +9,8 @@ import {
   LogOut,
   Settings,
   PanelLeft,
+  Users,
+  Check,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -25,6 +27,24 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/contexts/auth-context';
 import { useRouter } from 'next/navigation';
 import { generateAvatar } from '@/lib/avatar';
+
+const notifications = [
+    {
+      title: "Nueva tarea asignada",
+      description: "Se te ha asignado la tarea 'Diseñar el nuevo dashboard'.",
+      icon: <UserIcon className="h-4 w-4" />,
+    },
+    {
+      title: "Proyecto actualizado",
+      description: "El equipo 'Frontend' ha sido añadido al proyecto 'QuantumLeap CRM'.",
+      icon: <Users className="h-4 w-4" />,
+    },
+    {
+      title: "Tarea completada",
+      description: "Juan Pérez ha completado la tarea 'Implementar autenticación'.",
+      icon: <Check className="h-4 w-4" />,
+    },
+];
 
 export function AppHeader() {
   const { user, signOut } = useAuth();
@@ -70,10 +90,29 @@ export function AppHeader() {
           </div>
         </form>
       </div>
-      <Button variant="ghost" size="icon" className="rounded-full">
-        <Bell className="h-5 w-5" />
-        <span className="sr-only">Alternar notificaciones</span>
-      </Button>
+      
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon" className="rounded-full">
+            <Bell className="h-5 w-5" />
+            <span className="sr-only">Alternar notificaciones</span>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-80">
+            <DropdownMenuLabel>Notificaciones</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {notifications.map((notification, index) => (
+              <DropdownMenuItem key={index} className="flex gap-3 items-start">
+                 <div className="mt-1">{notification.icon}</div>
+                <div className="flex flex-col">
+                  <span className="font-semibold text-sm">{notification.title}</span>
+                  <span className="text-xs text-muted-foreground">{notification.description}</span>
+                </div>
+              </DropdownMenuItem>
+            ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="icon" className="rounded-full" data-tour="user-menu">

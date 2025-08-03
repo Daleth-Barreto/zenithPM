@@ -18,7 +18,6 @@ import {
   SidebarMenuButton,
   SidebarMenuSub,
   SidebarMenuSubButton,
-  SidebarMenuSubItem,
 } from '@/components/ui/sidebar';
 import { Logo } from '@/components/logo';
 import { Separator } from '@/components/ui/separator';

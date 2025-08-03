@@ -35,8 +35,6 @@ import {
   SheetFooter,
   SheetTrigger,
 } from '@/components/ui/sheet';
-import { TeamTaskList } from '@/components/teams/team-task-list';
-import { Separator } from '@/components/ui/separator';
 
 export default function ProjectTeamsPage() {
   const project = useProject();
@@ -163,133 +161,126 @@ export default function ProjectTeamsPage() {
       </div>
 
       {teams.length > 0 ? (
-        <div className="space-y-8">
-          <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-            {teams.map((team) => (
-              <Card key={team.id} className="flex flex-col">
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <Avatar className="h-8 w-8">
-                            <AvatarFallback><Users /></AvatarFallback>
-                        </Avatar>
-                        {team.name}
-                    </CardTitle>
-                    <CardDescription>{team.members.length} miembros</CardDescription>
-                </CardHeader>
-                <CardContent className="flex-grow">
-                      <div className="flex -space-x-2">
-                        {team.members.slice(0, 5).map((member) => (
-                            <Avatar key={member.id} className="border-2 border-card">
-                            <AvatarImage src={member.avatarUrl} alt={member.name} />
-                            <AvatarFallback>{member.initials}</AvatarFallback>
-                            </Avatar>
-                        ))}
-                        {team.members.length > 5 && (
-                            <Avatar className="border-2 border-card">
-                            <AvatarFallback>+{team.members.length - 5}</AvatarFallback>
-                            </Avatar>
-                        )}
-                    </div>
-                </CardContent>
-                <CardFooter>
-                    <Sheet onOpenChange={(isOpen) => !isOpen && setSelectedTeam(null)}>
-                      <SheetTrigger asChild>
-                        <Button variant="outline" className="w-full" onClick={() => setSelectedTeam(team)}>
-                          <Settings className="mr-2 h-4 w-4" />
-                          Gestionar Equipo
-                        </Button>
-                      </SheetTrigger>
-                      <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
-                        <SheetHeader>
-                          <SheetTitle>Gestionar: {selectedTeam?.name}</SheetTitle>
-                          <SheetDescription>Añade o elimina miembros y gestiona sus roles.</SheetDescription>
-                        </SheetHeader>
-                        <div className="py-6 space-y-6">
-                          <Card>
-                            <CardHeader><CardTitle>Miembros</CardTitle></CardHeader>
-                            <CardContent className="space-y-4">
-                              {selectedTeam?.members.map(member => (
-                                  <div key={member.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-2 rounded-md hover:bg-muted/50">
-                                      <div className="flex items-center gap-4">
-                                        <Avatar className="h-12 w-12">
-                                            <AvatarImage src={member.avatarUrl} />
-                                            <AvatarFallback>{member.initials}</AvatarFallback>
-                                        </Avatar>
-                                        <div>
-                                            <p className="font-medium text-lg">{member.name}</p>
-                                            <p className="text-sm text-muted-foreground">{member.email}</p>
-                                        </div>
+        <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+          {teams.map((team) => (
+            <Card key={team.id} className="flex flex-col">
+              <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                      <Avatar className="h-8 w-8">
+                          <AvatarFallback><Users /></AvatarFallback>
+                      </Avatar>
+                      {team.name}
+                  </CardTitle>
+                  <CardDescription>{team.members.length} miembros</CardDescription>
+              </CardHeader>
+              <CardContent className="flex-grow">
+                    <div className="flex -space-x-2">
+                      {team.members.slice(0, 5).map((member) => (
+                          <Avatar key={member.id} className="border-2 border-card">
+                          <AvatarImage src={member.avatarUrl} alt={member.name} />
+                          <AvatarFallback>{member.initials}</AvatarFallback>
+                          </Avatar>
+                      ))}
+                      {team.members.length > 5 && (
+                          <Avatar className="border-2 border-card">
+                          <AvatarFallback>+{team.members.length - 5}</AvatarFallback>
+                          </Avatar>
+                      )}
+                  </div>
+              </CardContent>
+              <CardFooter>
+                  <Sheet onOpenChange={(isOpen) => !isOpen && setSelectedTeam(null)}>
+                    <SheetTrigger asChild>
+                      <Button variant="outline" className="w-full" onClick={() => setSelectedTeam(team)}>
+                        <Settings className="mr-2 h-4 w-4" />
+                        Gestionar Equipo
+                      </Button>
+                    </SheetTrigger>
+                    <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+                      <SheetHeader>
+                        <SheetTitle>Gestionar: {selectedTeam?.name}</SheetTitle>
+                        <SheetDescription>Añade o elimina miembros y gestiona sus roles.</SheetDescription>
+                      </SheetHeader>
+                      <div className="py-6 space-y-6">
+                        <Card>
+                          <CardHeader><CardTitle>Miembros</CardTitle></CardHeader>
+                          <CardContent className="space-y-4">
+                            {selectedTeam?.members.map(member => (
+                                <div key={member.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-2 rounded-md hover:bg-muted/50">
+                                    <div className="flex items-center gap-4">
+                                      <Avatar className="h-12 w-12">
+                                          <AvatarImage src={member.avatarUrl} />
+                                          <AvatarFallback>{member.initials}</AvatarFallback>
+                                      </Avatar>
+                                      <div>
+                                          <p className="font-medium text-lg">{member.name}</p>
+                                          <p className="text-sm text-muted-foreground">{member.email}</p>
                                       </div>
-                                      <div className="flex items-center gap-2 w-full sm:w-auto">
-                                        <Select
-                                            defaultValue={member.role}
-                                            onValueChange={(value: 'Admin' | 'Miembro') => handleRoleChange(member.id, value)}
-                                            disabled={!selectedTeam || !canManageTeam(selectedTeam) || (member.id === user?.uid && selectedTeam.ownerId === user?.uid)}
-                                        >
-                                            <SelectTrigger className="w-full sm:w-36">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                              <SelectItem value="Admin">Admin</SelectItem>
-                                              <SelectItem value="Miembro">Miembro</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                        <AlertDialog>
-                                            <AlertDialogTrigger asChild>
-                                            <Button variant="ghost" size="icon" className="text-muted-foreground" disabled={!selectedTeam || !canManageTeam(selectedTeam) || (member.id === user?.uid && selectedTeam.ownerId === user?.uid)}>
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
-                                            </AlertDialogTrigger>
-                                            <AlertDialogContent>
-                                            <AlertDialogHeader>
-                                                <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                                                <AlertDialogDescription>
-                                                Esta acción eliminará permanentemente al miembro del equipo.
-                                                </AlertDialogDescription>
-                                            </AlertDialogHeader>
-                                            <AlertDialogFooter>
-                                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                <AlertDialogAction onClick={() => handleRemoveMember(member.id)}>Eliminar</AlertDialogAction>
-                                            </AlertDialogFooter>
-                                            </AlertDialogContent>
-                                        </AlertDialog>
-                                      </div>
-                                  </div>
-                              ))}
-                            </CardContent>
-                          </Card>
-                          {selectedTeam && canManageTeam(selectedTeam) && (
-                              <Card>
-                                  <CardHeader><CardTitle>Invitar Nuevo Miembro</CardTitle></CardHeader>
-                                  <CardContent>
-                                      <div className="flex flex-col sm:flex-row gap-2">
-                                          <Input 
-                                              type="email" 
-                                              placeholder="nuevo.miembro@example.com" 
-                                              value={inviteEmail}
-                                              onChange={(e) => setInviteEmail(e.target.value)}
-                                              disabled={isInviting}
-                                          />
-                                          <Button onClick={handleAddMember} disabled={isInviting || !inviteEmail} className="mt-2 sm:mt-0">
-                                              {isInviting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
-                                              Enviar Invitación
+                                    </div>
+                                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                                      <Select
+                                          defaultValue={member.role}
+                                          onValueChange={(value: 'Admin' | 'Miembro') => handleRoleChange(member.id, value)}
+                                          disabled={!selectedTeam || !canManageTeam(selectedTeam) || (member.id === user?.uid && selectedTeam.ownerId === user?.uid)}
+                                      >
+                                          <SelectTrigger className="w-full sm:w-36">
+                                              <SelectValue />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            <SelectItem value="Admin">Admin</SelectItem>
+                                            <SelectItem value="Miembro">Miembro</SelectItem>
+                                          </SelectContent>
+                                      </Select>
+                                      <AlertDialog>
+                                          <AlertDialogTrigger asChild>
+                                          <Button variant="ghost" size="icon" className="text-muted-foreground" disabled={!selectedTeam || !canManageTeam(selectedTeam) || (member.id === user?.uid && selectedTeam.ownerId === user?.uid)}>
+                                              <Trash2 className="h-4 w-4" />
                                           </Button>
-                                      </div>
-                                  </CardContent>
-                              </Card>
-                          )}
-                        </div>
-                      </SheetContent>
-                    </Sheet>
-                </CardFooter>
-              </Card>
-            ))}
-          </div>
-
-          <Separator />
-          
-          <TeamTaskList teamId={teams[0].id} />
-
+                                          </AlertDialogTrigger>
+                                          <AlertDialogContent>
+                                          <AlertDialogHeader>
+                                              <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                                              <AlertDialogDescription>
+                                              Esta acción eliminará permanentemente al miembro del equipo.
+                                              </AlertDialogDescription>
+                                          </AlertDialogHeader>
+                                          <AlertDialogFooter>
+                                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                              <AlertDialogAction onClick={() => handleRemoveMember(member.id)}>Eliminar</AlertDialogAction>
+                                          </AlertDialogFooter>
+                                          </AlertDialogContent>
+                                      </AlertDialog>
+                                    </div>
+                                </div>
+                            ))}
+                          </CardContent>
+                        </Card>
+                        {selectedTeam && canManageTeam(selectedTeam) && (
+                            <Card>
+                                <CardHeader><CardTitle>Invitar Nuevo Miembro</CardTitle></CardHeader>
+                                <CardContent>
+                                    <div className="flex flex-col sm:flex-row gap-2">
+                                        <Input 
+                                            type="email" 
+                                            placeholder="nuevo.miembro@example.com" 
+                                            value={inviteEmail}
+                                            onChange={(e) => setInviteEmail(e.target.value)}
+                                            disabled={isInviting}
+                                        />
+                                        <Button onClick={handleAddMember} disabled={isInviting || !inviteEmail} className="mt-2 sm:mt-0">
+                                            {isInviting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
+                                            Enviar Invitación
+                                        </Button>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        )}
+                      </div>
+                    </SheetContent>
+                  </Sheet>
+              </CardFooter>
+            </Card>
+          ))}
         </div>
       ) : (
          <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm mt-8 sm:mt-16 py-16 sm:py-24">

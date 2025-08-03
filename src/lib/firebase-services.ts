@@ -220,55 +220,6 @@ export function getTasksForProject(
   return unsubscribe;
 }
 
-export function getTasksForTeam(
-    teamId: string,
-    callback: (tasks: (Task & { projectName: string, projectId: string })[]) => void
-) {
-    const teamDocRef = doc(db, `teams/${teamId}`);
-
-    const unsubscribe = onSnapshot(teamDocRef, async (teamSnap) => {
-        if (!teamSnap.exists()) {
-            console.warn(`Team with id ${teamId} does not exist.`);
-            callback([]);
-            return;
-        }
-        
-        const team = teamSnap.data() as Team;
-        const memberIds = team.memberIds || [];
-        const projectId = team.projectId;
-
-        if (memberIds.length === 0 || !projectId) {
-            callback([]);
-            return;
-        }
-        
-        const projectRef = doc(db, 'projects', projectId);
-        const projectSnap = await getDoc(projectRef);
-        const projectName = projectSnap.exists() ? projectSnap.data().name : 'Unknown Project';
-
-        const tasksRef = collection(db, 'projects', projectId, 'tasks');
-        const tasksQuery = query(tasksRef, where('assignee.id', 'in', memberIds));
-
-        onSnapshot(tasksQuery, (tasksSnapshot) => {
-            const teamTasks: (Task & { projectName: string, projectId: string })[] = [];
-            tasksSnapshot.forEach(doc => {
-                const taskData = doc.data() as Task;
-                teamTasks.push({ ...taskData, id: doc.id, projectName, projectId });
-            });
-            callback(teamTasks);
-        }, (error) => {
-            console.error("Error fetching tasks for team:", error);
-            callback([]);
-        });
-
-    }, (error) => {
-        console.error("Error fetching team document:", error);
-        callback([]);
-    });
-
-    return unsubscribe;
-}
-
 export function getTasksForUser(
     userId: string,
     callback: (tasks: (Task & { projectName: string, projectId: string })[]) => void

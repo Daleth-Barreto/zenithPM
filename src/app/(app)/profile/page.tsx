@@ -22,15 +22,83 @@ import {
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { getFirebaseAuthErrorMessage } from '@/lib/firebase-errors';
+
+
+const profileFormSchema = z.object({
+  fullName: z.string().min(2, { message: 'El nombre debe tener al menos 2 caracteres.' }),
+  currentPassword: z.string(),
+  newPassword: z.string(),
+  confirmPassword: z.string(),
+}).refine(data => {
+  // Si se escribe una nueva contraseña, la confirmación debe coincidir
+  if (data.newPassword) {
+    return data.newPassword === data.confirmPassword;
+  }
+  return true;
+}, {
+  message: "Las nuevas contraseñas no coinciden.",
+  path: ["confirmPassword"],
+}).refine(data => {
+  // Si se escribe una nueva contraseña, la actual es requerida
+  if (data.newPassword) {
+    return !!data.currentPassword;
+  }
+  return true;
+}, {
+  message: "Se requiere la contraseña actual para cambiarla.",
+  path: ["currentPassword"],
+});
+
 
 export default function ProfilePage() {
-  const { user, deleteUserAccount } = useAuth();
+  const { user, deleteUserAccount, updateUserAccount } = useAuth();
   const { toast } = useToast();
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  
+  const form = useForm<z.infer<typeof profileFormSchema>>({
+    resolver: zodResolver(profileFormSchema),
+    defaultValues: {
+      fullName: user?.displayName || '',
+      currentPassword: '',
+      newPassword: '',
+      confirmPassword: '',
+    },
+  });
 
   if (!user) {
     return null;
   }
+
+  const handleUpdateProfile = async (values: z.infer<typeof profileFormSchema>) => {
+    setIsUpdating(true);
+    try {
+      await updateUserAccount(values.fullName, values.currentPassword, values.newPassword);
+      toast({
+        title: 'Perfil Actualizado',
+        description: 'Tus datos han sido actualizados correctamente.',
+      });
+      form.reset({
+          ...values,
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: '',
+      });
+    } catch (error: any) {
+       toast({
+        variant: 'destructive',
+        title: 'Error al actualizar',
+        description: getFirebaseAuthErrorMessage(error.code),
+      });
+    } finally {
+        setIsUpdating(false);
+    }
+  };
 
   const handleDeleteAccount = async () => {
     setIsDeleting(true);
@@ -40,7 +108,6 @@ export default function ProfilePage() {
         title: 'Cuenta Eliminada',
         description: 'Tu cuenta ha sido eliminada permanentemente.',
       });
-      // The auth provider will handle redirecting the user out of the app
     } catch (error: any) {
        toast({
         variant: 'destructive',
@@ -70,8 +137,8 @@ export default function ProfilePage() {
           <CardTitle>Mi Perfil</CardTitle>
           <CardDescription>Actualiza tu información personal y configuración.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="flex flex-col sm:flex-row items-center gap-4">
+        <CardContent>
+          <div className="flex flex-col sm:flex-row items-center gap-4 mb-6">
             <Avatar className="h-20 w-20">
               <AvatarImage src={userAvatar} />
               <AvatarFallback className="text-2xl">{getInitials(userName)}</AvatarFallback>
@@ -81,23 +148,75 @@ export default function ProfilePage() {
               <p className="text-sm text-muted-foreground">Tu avatar se genera a partir de tu nombre.</p>
             </div>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="fullName">Nombre Completo</Label>
-            <Input id="fullName" defaultValue={userName} />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="email">Correo Electrónico</Label>
-            <Input id="email" type="email" defaultValue={userEmail} disabled />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="currentPassword">Contraseña Actual</Label>
-            <Input id="currentPassword" type="password" />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="newPassword">Nueva Contraseña</Label>
-            <Input id="newPassword" type="password" />
-          </div>
-          <Button>Actualizar Perfil</Button>
+          
+           <Form {...form}>
+            <form onSubmit={form.handleSubmit(handleUpdateProfile)} className="space-y-6">
+               <FormField
+                control={form.control}
+                name="fullName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nombre Completo</FormLabel>
+                    <FormControl>
+                      <Input {...field} disabled={isUpdating} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <div className="space-y-2">
+                <Label htmlFor="email">Correo Electrónico</Label>
+                <Input id="email" type="email" defaultValue={userEmail} disabled />
+              </div>
+              
+              <p className="text-sm text-muted-foreground pt-4 border-t">Rellena los siguientes campos solo si quieres cambiar tu contraseña.</p>
+
+               <FormField
+                control={form.control}
+                name="currentPassword"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Contraseña Actual</FormLabel>
+                    <FormControl>
+                      <Input type="password" {...field} disabled={isUpdating} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+               <FormField
+                control={form.control}
+                name="newPassword"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nueva Contraseña</FormLabel>
+                    <FormControl>
+                      <Input type="password" {...field} disabled={isUpdating} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="confirmPassword"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Confirmar Nueva Contraseña</FormLabel>
+                    <FormControl>
+                      <Input type="password" {...field} disabled={isUpdating} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <Button type="submit" disabled={isUpdating}>
+                 {isUpdating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Actualizar Perfil
+              </Button>
+            </form>
+           </Form>
         </CardContent>
       </Card>
       

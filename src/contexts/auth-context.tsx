@@ -12,10 +12,13 @@ import {
   signInWithPopup,
   updateProfile,
   deleteUser,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+  updatePassword,
 } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import type { SignUpData, SignInData } from '@/lib/types';
-import { doc, setDoc, deleteDoc } from 'firebase/firestore';
+import { doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 
 interface AuthContextType {
   user: User | null;
@@ -25,6 +28,7 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   signInWithGoogle: () => Promise<any>;
   deleteUserAccount: () => Promise<void>;
+  updateUserAccount: (fullName: string, currentPassword?: string, newPassword?: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -82,6 +86,31 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return firebaseSignOut(auth);
   };
 
+  const updateUserAccount = async (fullName: string, currentPassword?: string, newPassword?: string) => {
+    if (!auth.currentUser) {
+      throw new Error("No hay un usuario autenticado para actualizar.");
+    }
+    const currentUser = auth.currentUser;
+
+    // Update display name if it has changed
+    if (currentUser.displayName !== fullName) {
+      await updateProfile(currentUser, { displayName: fullName });
+      const userDocRef = doc(db, 'users', currentUser.uid);
+      await updateDoc(userDocRef, { displayName: fullName });
+    }
+
+    // Update password if new password is provided
+    if (newPassword && currentPassword) {
+      if (!currentUser.email) {
+          throw new Error("No se puede cambiar la contraseña de cuentas sin correo electrónico.");
+      }
+      const credential = EmailAuthProvider.credential(currentUser.email, currentPassword);
+      // Re-authenticate user before changing password for security
+      await reauthenticateWithCredential(currentUser, credential);
+      await updatePassword(currentUser, newPassword);
+    }
+  };
+
   const deleteUserAccount = async () => {
     if (!auth.currentUser) {
       throw new Error("No hay un usuario autenticado para eliminar.");
@@ -116,6 +145,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     signOut,
     signInWithGoogle,
     deleteUserAccount,
+    updateUserAccount,
   };
 
   return <AuthContext.Provider value={value}>{!loading && children}</AuthContext.Provider>;

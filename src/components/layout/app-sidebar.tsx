@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -5,7 +6,6 @@ import {
   LayoutDashboard,
   FolderKanban,
   User,
-  LogOut,
   ChevronDown,
 } from 'lucide-react';
 import {
@@ -24,13 +24,23 @@ import { Logo } from '@/components/logo';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { usePathname } from 'next/navigation';
-import { mockProjects, mockUsers } from '@/lib/mock-data';
+import { mockProjects } from '@/lib/mock-data';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../ui/collapsible';
+import { useAuth } from '@/contexts/auth-context';
 
 export function AppSidebar() {
   const pathname = usePathname();
-  const currentUser = mockUsers[0];
+  const { user } = useAuth();
   const isActive = (path: string) => pathname === path || pathname.startsWith(path + '/');
+  
+  const getInitials = (name: string | null | undefined) => {
+    if (!name) return 'U';
+    return name.split(' ').map(n => n[0]).join('').toUpperCase();
+  };
+
+  if (!user) {
+    return null; // Or a loading component
+  }
 
   return (
     <Sidebar collapsible="icon" variant="sidebar">
@@ -107,12 +117,12 @@ export function AppSidebar() {
         <SidebarFooter className="p-4">
           <div className="flex items-center gap-3">
             <Avatar className="h-10 w-10">
-              <AvatarImage src={currentUser.avatarUrl} />
-              <AvatarFallback>{currentUser.initials}</AvatarFallback>
+              <AvatarImage src={user.photoURL || undefined} />
+              <AvatarFallback>{getInitials(user.displayName)}</AvatarFallback>
             </Avatar>
             <div className="flex flex-col group-data-[collapsible=icon]:hidden">
-              <span className="font-semibold text-sm">{currentUser.name}</span>
-              <span className="text-xs text-muted-foreground">{currentUser.email}</span>
+              <span className="font-semibold text-sm">{user.displayName}</span>
+              <span className="text-xs text-muted-foreground">{user.email}</span>
             </div>
           </div>
         </SidebarFooter>

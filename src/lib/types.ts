@@ -1,3 +1,4 @@
+
 export interface User {
   id: string;
   name: string;
@@ -41,4 +42,13 @@ export interface Project {
   progress: number;
   team: TeamMember[];
   tasks: Task[];
+}
+
+export interface SignInData {
+  email: string;
+  password?: string;
+}
+
+export interface SignUpData extends SignInData {
+  fullName: string;
 }

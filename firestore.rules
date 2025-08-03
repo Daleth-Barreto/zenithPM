@@ -3,31 +3,28 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Helper function to check if user is a member of a project
+    
+    // Helper function to check project membership
     function isProjectMember(projectId) {
       return request.auth.uid in get(/databases/$(database)/documents/projects/$(projectId)).data.teamIds;
     }
 
-    // Helper function to check if user is a member of a team
-    function isTeamMember(teamId) {
-      return request.auth.uid in get(/databases/$(database)/documents/teams/$(teamId)).data.memberIds;
-    }
-
+    // Rules for projects collection
     match /projects/{projectId} {
       allow read: if isProjectMember(projectId);
       allow create: if request.auth != null;
-      allow update, delete: if resource.data.ownerId == request.auth.uid || get(/databases/$(database)/documents/projects/$(projectId)).data.team.matchesAny(member, member.id == request.auth.uid && member.role == 'Admin');
-      
+      allow update, delete: if isProjectMember(projectId);
+
+      // Rules for tasks subcollection
       match /tasks/{taskId} {
         allow read, write: if isProjectMember(projectId);
       }
     }
-    
+
+    // Rules for teams collection
     match /teams/{teamId} {
-      allow read: if isTeamMember(teamId);
+      allow read, write: if request.auth.uid in resource.data.memberIds;
       allow create: if request.auth != null;
-      allow update, delete: if resource.data.ownerId == request.auth.uid;
     }
   }
 }

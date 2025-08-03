@@ -1,18 +1,16 @@
 
 import { Draggable } from '@hello-pangea/dnd';
-import {
-  Card,
-  CardContent,
-} from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import type { Task } from '@/lib/types';
 import {
   ArrowDown,
   ArrowRight,
   ArrowUp,
-  Circle,
-  MoreHorizontal,
+  MessageSquare,
+  Paperclip,
 } from 'lucide-react';
 
 interface TicketCardProps {
@@ -28,15 +26,15 @@ const priorityIcons: Record<Task['priority'], React.ReactNode> = {
   urgent: <ArrowUp className="h-4 w-4 text-red-500" />,
 };
 
-const tagColors: Record<NonNullable<Task['tags']>[0]['color'], string> = {
-  blue: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
-  green: 'bg-green-500/20 text-green-300 border-green-500/30',
-  orange: 'bg-orange-500/20 text-orange-300 border-orange-500/30',
-  purple: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
-  red: 'bg-red-500/20 text-red-300 border-red-500/30',
+const getTaskProgress = (task: Task) => {
+    if (!task.subtasks || task.subtasks.length === 0) return 0;
+    const completed = task.subtasks.filter(st => st.status === 'completed').length;
+    return Math.round((completed / task.subtasks.length) * 100);
 };
 
 export function TicketCard({ task, index, onClick }: TicketCardProps) {
+  const progress = getTaskProgress(task);
+
   return (
     <Draggable draggableId={task.id} index={index}>
       {(provided, snapshot) => (
@@ -44,39 +42,43 @@ export function TicketCard({ task, index, onClick }: TicketCardProps) {
           ref={provided.innerRef}
           {...provided.draggableProps}
           {...provided.dragHandleProps}
-          className="mb-2"
+          className="mb-3"
           onClick={onClick}
         >
           <Card
-            className={`hover:bg-muted/80 cursor-pointer transition-colors ${
-              snapshot.isDragging ? 'ring-2 ring-primary' : ''
-            }`}
+            className={`bg-card rounded-xl hover:bg-muted/80 cursor-pointer transition-shadow duration-300
+              ${snapshot.isDragging ? 'ring-2 ring-primary shadow-lg' : 'shadow-md'}`}
           >
-            <CardContent className="p-3">
-              <div className="flex justify-between items-start mb-2">
-                <span className="font-medium leading-tight">{task.title}</span>
-                {/* <MoreHorizontal className="h-4 w-4 text-muted-foreground" /> */}
-              </div>
-              {task.tags && task.tags.length > 0 && (
-                <div className="flex flex-wrap gap-1 mb-3">
-                  {task.tags.map((tag) => (
-                    <Badge key={tag.id} variant="outline" className={tagColors[tag.color]}>
-                      {tag.label}
-                    </Badge>
-                  ))}
-                </div>
+            <CardContent className="p-4 space-y-3">
+              <span className="font-semibold leading-tight text-base">{task.title}</span>
+              
+              {task.description && (
+                <p className="text-sm text-muted-foreground line-clamp-2">{task.description}</p>
               )}
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  {priorityIcons[task.priority]}
-                </div>
-                {task.assignee && (
-                  <Avatar className="h-6 w-6">
-                    <AvatarImage src={task.assignee.avatarUrl} alt={task.assignee.name} />
-                    <AvatarFallback>{task.assignee.initials}</AvatarFallback>
-                  </Avatar>
+              
+              <div className="flex justify-between items-center text-sm text-muted-foreground">
+                 <Badge variant="outline" className="font-normal capitalize flex items-center gap-2">
+                    {priorityIcons[task.priority]}
+                    {task.priority}
+                 </Badge>
+                 {task.assignee && (
+                    <Avatar className="h-7 w-7">
+                        <AvatarImage src={task.assignee.avatarUrl} alt={task.assignee.name} />
+                        <AvatarFallback>{task.assignee.initials}</AvatarFallback>
+                    </Avatar>
                 )}
               </div>
+
+              {task.subtasks && task.subtasks.length > 0 && (
+                <div>
+                   <div className="flex justify-between items-center mb-1">
+                     <span className="text-xs font-medium text-muted-foreground">Progreso</span>
+                     <span className="text-xs font-semibold">{progress}%</span>
+                   </div>
+                   <Progress value={progress} className="h-1.5" />
+                </div>
+              )}
+
             </CardContent>
           </Card>
         </div>

@@ -48,11 +48,7 @@ export function KanbanBoard({ project }: KanbanBoardProps) {
   }, [project.id]);
 
   useEffect(() => {
-    const newColumns = { ...initialColumns };
-    // Reset items array for each column
-    Object.keys(newColumns).forEach(key => {
-        newColumns[key as TaskStatus].items = [];
-    });
+    const newColumns = JSON.parse(JSON.stringify(initialColumns)); // Deep copy
 
     tasks.forEach((task) => {
       if (newColumns[task.status]) {
@@ -74,10 +70,10 @@ export function KanbanBoard({ project }: KanbanBoardProps) {
         title: `Nueva Tarea`,
         status,
         priority: 'medium' as const,
-        order,
         description: '',
+        subtasks: [],
     };
-    await createTask(project.id, newTaskData);
+    await createTask(project.id, { ...newTaskData, order });
     // Real-time listener will update the state
   };
 
@@ -152,31 +148,27 @@ export function KanbanBoard({ project }: KanbanBoardProps) {
   };
 
   return (
-    <div className="flex-1 p-4 md:p-8 space-x-4 flex overflow-x-auto h-full">
+    <div className="flex-1 p-4 md:p-8 space-x-4 flex overflow-x-auto h-full bg-muted/40">
       <DragDropContext onDragEnd={onDragEnd}>
         {columnOrder.map((columnId) => {
           const column = columns[columnId];
           if (!column) return null;
           return (
-            <div key={columnId} className="flex flex-col w-72 lg:w-80 flex-shrink-0">
-              <div className="p-3 border-b bg-muted/50 rounded-t-lg">
-                <h3 className="font-semibold">{column.name}</h3>
-                <p className="text-sm text-muted-foreground">
-                  {column.items.length} tarea{column.items.length !== 1 ? 's' : ''}
-                </p>
+            <div key={columnId} className="flex flex-col w-80 flex-shrink-0">
+              <div className="flex items-center justify-between p-3 rounded-t-lg mb-2">
+                <h3 className="font-semibold text-lg">{column.name}</h3>
+                <span className="text-sm font-medium text-muted-foreground bg-muted rounded-full px-2 py-0.5">
+                  {column.items.length}
+                </span>
               </div>
-               <Button variant="ghost" size="sm" className="m-2" onClick={() => handleAddTask(columnId)}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Añadir Tarea
-              </Button>
+              
               <Droppable key={columnId} droppableId={columnId}>
                 {(provided, snapshot) => (
                   <div
                     ref={provided.innerRef}
                     {...provided.droppableProps}
-                    className={`flex-1 p-2 overflow-y-auto bg-muted/50 rounded-b-lg transition-colors ${
-                      snapshot.isDraggingOver ? 'bg-muted' : ''
-                    }`}
+                    className={`flex-1 p-2 rounded-b-lg transition-colors min-h-[150px]
+                      ${snapshot.isDraggingOver ? 'bg-primary/10' : ''}`}
                   >
                     {column.items.map((task, index) => (
                       <TicketCard
@@ -190,6 +182,10 @@ export function KanbanBoard({ project }: KanbanBoardProps) {
                   </div>
                 )}
               </Droppable>
+               <Button variant="ghost" size="sm" className="mt-2" onClick={() => handleAddTask(columnId)}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Añadir Tarea
+              </Button>
             </div>
           )
         })}

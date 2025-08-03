@@ -15,11 +15,18 @@ export interface TeamMember extends User {
 
 export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
 export type TaskStatus = 'backlog' | 'in-progress' | 'review' | 'done';
+export type SubtaskStatus = 'pending' | 'completed';
 
 export interface TaskTag {
   id: string;
   label: string;
   color: 'blue' | 'green' | 'orange' | 'purple' | 'red';
+}
+
+export interface Subtask {
+  id: string;
+  title: string;
+  status: SubtaskStatus;
 }
 
 export interface Task {
@@ -32,6 +39,7 @@ export interface Task {
   assignee?: TeamMember | null;
   collaborators?: TeamMember[];
   tags?: TaskTag[];
+  subtasks?: Subtask[];
   order: number;
 }
 

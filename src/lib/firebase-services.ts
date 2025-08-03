@@ -142,6 +142,7 @@ export function getTasksForProject(
         id: doc.id,
         ...data,
         dueDate: data.dueDate?.toDate(), // Convert Firestore Timestamp to JS Date
+        subtasks: data.subtasks || [],
       } as Task);
     });
     callback(tasks);
@@ -163,20 +164,29 @@ export async function updateTaskOrder(projectId: string, taskId: string, order: 
 }
 
 
-export async function updateTask(projectId: string, taskId: string, taskData: Partial<Task>) {
-  const taskRef = doc(db, 'projects', projectId, 'tasks', taskId);
-  const dataToUpdate = { ...taskData };
-  // Firestore handles undefined fields correctly (doesn't update them)
-  // But make sure to handle date objects properly
-  if (dataToUpdate.dueDate && !(dataToUpdate.dueDate instanceof Date)) {
-    dataToUpdate.dueDate = (dataToUpdate.dueDate as any).toDate();
-  }
-  await updateDoc(taskRef, dataToUpdate);
+export async function updateTask(projectId: string, taskId:string, taskData: Partial<Omit<Task, 'id'>>) {
+    const taskRef = doc(db, 'projects', projectId, 'tasks', taskId);
+    const dataToUpdate = { ...taskData };
+
+    if (dataToUpdate.dueDate && !(dataToUpdate.dueDate instanceof Date)) {
+        // This case is unlikely with the current implementation but good for safety
+        dataToUpdate.dueDate = (dataToUpdate.dueDate as any).toDate();
+    }
+    
+    // Ensure subtasks are plain objects for Firestore
+    if (dataToUpdate.subtasks) {
+        dataToUpdate.subtasks = dataToUpdate.subtasks.map(subtask => ({ ...subtask }));
+    }
+
+    await updateDoc(taskRef, dataToUpdate);
 }
 
 export async function createTask(projectId: string, taskData: Omit<Task, 'id' | 'order'> & {order: number}) {
     const tasksRef = collection(db, 'projects', projectId, 'tasks');
-    const newDocRef = await addDoc(tasksRef, taskData);
+    const newDocRef = await addDoc(tasksRef, {
+        ...taskData,
+        subtasks: [], // Initialize with empty subtasks
+    });
     return newDocRef.id;
 }
 

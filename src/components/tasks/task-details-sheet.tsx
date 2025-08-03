@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/select';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Calendar as CalendarIcon,
   Tag,
@@ -29,8 +30,9 @@ import {
   AlertCircle,
   Trash2,
   Loader2,
+  Plus
 } from 'lucide-react';
-import type { Task, Project, TeamMember, TaskPriority, TaskStatus } from '@/lib/types';
+import type { Task, Project, TeamMember, TaskPriority, TaskStatus, Subtask, SubtaskStatus } from '@/lib/types';
 import { Calendar } from '../ui/calendar';
 import { Popover, PopoverTrigger, PopoverContent } from '../ui/popover';
 import { format } from 'date-fns';
@@ -50,6 +52,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { cn } from '@/lib/utils';
+
 
 interface TaskDetailsSheetProps {
   task: Task | null;
@@ -63,6 +67,7 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
   const [currentTask, setCurrentTask] = useState<Task | null>(task);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -79,6 +84,25 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
     const assignee = project.team.find(m => m.id === memberId);
     handleFieldChange('assignee', assignee || null);
   }
+  
+  const handleSubtaskStatusChange = (subtaskId: string, status: SubtaskStatus) => {
+    const updatedSubtasks = currentTask.subtasks?.map(st =>
+      st.id === subtaskId ? { ...st, status } : st
+    );
+    handleFieldChange('subtasks', updatedSubtasks);
+  };
+  
+  const handleAddSubtask = () => {
+    if (!newSubtaskTitle.trim() || !currentTask) return;
+    const newSubtask: Subtask = {
+      id: new Date().getTime().toString(),
+      title: newSubtaskTitle,
+      status: 'pending',
+    };
+    const updatedSubtasks = [...(currentTask.subtasks || []), newSubtask];
+    handleFieldChange('subtasks', updatedSubtasks);
+    setNewSubtaskTitle('');
+  };
 
   const handleSave = async () => {
     if (!currentTask) return;
@@ -152,6 +176,44 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
                 placeholder="Añade una descripción más detallada..."
               />
             </div>
+
+            <Separator />
+
+            <div className="space-y-4">
+                <Label>Subtareas</Label>
+                <div className="space-y-2">
+                    {currentTask.subtasks?.map(subtask => (
+                        <div key={subtask.id} className="flex items-center gap-3">
+                        <Checkbox
+                            id={`subtask-sheet-${subtask.id}`}
+                            checked={subtask.status === 'completed'}
+                            onCheckedChange={(checked) => handleSubtaskStatusChange(subtask.id, checked ? 'completed' : 'pending')}
+                        />
+                        <label
+                            htmlFor={`subtask-sheet-${subtask.id}`}
+                            className={cn(
+                            "text-sm font-medium leading-none flex-1",
+                            subtask.status === 'completed' && "line-through text-muted-foreground"
+                            )}
+                        >
+                            {subtask.title}
+                        </label>
+                        </div>
+                    ))}
+                </div>
+                <div className="flex items-center gap-2">
+                    <Input 
+                        placeholder="Añadir subtarea..."
+                        value={newSubtaskTitle}
+                        onChange={(e) => setNewSubtaskTitle(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleAddSubtask()}
+                    />
+                    <Button size="icon" onClick={handleAddSubtask}><Plus className="h-4 w-4"/></Button>
+                </div>
+            </div>
+
+            <Separator />
+
             <div className="grid md:grid-cols-2 gap-6">
               <div className="grid gap-2">
                 <Label>

@@ -1,12 +1,24 @@
 
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, createContext, useContext } from 'react';
 import { ProjectHeader } from '@/components/projects/project-header';
 import { getProjectById } from '@/lib/firebase-services';
 import { notFound, useParams } from 'next/navigation';
 import type { Project } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
+
+// 1. Create a context for the project
+const ProjectContext = createContext<Project | null>(null);
+
+// Custom hook to use the project context
+export const useProject = () => {
+  const context = useContext(ProjectContext);
+  if (!context) {
+    throw new Error('useProject debe ser utilizado dentro de un ProjectProvider');
+  }
+  return context;
+};
 
 export default function ProjectLayout({
   children,
@@ -52,19 +64,12 @@ export default function ProjectLayout({
     notFound();
   }
 
-  // We are cloning the children to pass the project prop to them.
-  // This is a common pattern for layouts that need to pass data to their children pages.
-  const childrenWithProps = React.Children.map(children, child => {
-    if (React.isValidElement(child)) {
-        return React.cloneElement(child, { project } as any);
-    }
-    return child;
-  });
-
   return (
-    <div className="flex flex-col h-full">
-      <ProjectHeader project={project} />
-      <div className="flex-1 overflow-y-auto">{childrenWithProps}</div>
-    </div>
+    <ProjectContext.Provider value={project}>
+      <div className="flex flex-col h-full">
+        <ProjectHeader project={project} />
+        <div className="flex-1 overflow-y-auto">{children}</div>
+      </div>
+    </ProjectContext.Provider>
   );
 }

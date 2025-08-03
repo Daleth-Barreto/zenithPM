@@ -2,11 +2,12 @@
 'use client';
 
 import { KanbanBoard } from '@/components/tasks/kanban-board';
-import type { Project } from '@/lib/types';
+import { useProject } from '../layout';
 import { Skeleton } from '@/components/ui/skeleton';
 
-// The project prop is passed down from the ProjectLayout
-export default function ProjectBoardPage({ project }: { project: Project }) {
+export default function ProjectBoardPage() {
+  const project = useProject();
+
   if (!project) {
     return (
         <div className="p-4 md:p-8 flex-1 space-x-4 flex overflow-x-auto h-full">

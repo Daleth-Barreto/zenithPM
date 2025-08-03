@@ -150,7 +150,7 @@ const pricingPlans = {
         },
         {
             name: 'Startup',
-            price: '$29',
+            price: '$15',
             priceDetail: '/mes',
             description: 'Perfecto para equipos pequeños y startups en crecimiento.',
             features: [
@@ -194,7 +194,7 @@ const pricingPlans = {
         },
         {
             name: 'Startup',
-            price: '$299',
+            price: '$150',
             priceDetail: '/año',
             description: 'Perfecto para equipos pequeños y startups en crecimiento.',
             features: [

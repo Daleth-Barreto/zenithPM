@@ -181,11 +181,13 @@ export function TaskDetailsSheet({ task, project, isOpen, onClose, onUpdate }: T
     <Sheet open={isOpen} onOpenChange={onClose}>
       <SheetContent className="w-full sm:max-w-xl md:max-w-2xl flex flex-col">
         <SheetHeader>
-          <Input 
-            value={currentTask.title} 
-            onChange={(e) => handleFieldChange('title', e.target.value)}
-            className="text-2xl font-bold border-none shadow-none focus-visible:ring-0 p-0"
-          />
+          <SheetTitle>
+            <Input 
+              value={currentTask.title} 
+              onChange={(e) => handleFieldChange('title', e.target.value)}
+              className="text-2xl font-bold border-none shadow-none focus-visible:ring-0 p-0"
+            />
+          </SheetTitle>
           <SheetDescription>
             En el proyecto <span className="font-semibold text-primary">{project.name}</span>
           </SheetDescription>

@@ -148,47 +148,49 @@ export function KanbanBoard({ project }: KanbanBoardProps) {
   };
 
   return (
-    <div className="flex-1 p-4 md:p-8 space-x-4 flex overflow-x-auto h-full bg-muted/40">
+    <div className="flex h-full">
       <DragDropContext onDragEnd={onDragEnd}>
-        {columnOrder.map((columnId) => {
-          const column = columns[columnId];
-          if (!column) return null;
-          return (
-            <div key={columnId} className="flex flex-col w-80 flex-shrink-0">
-              <div className="flex items-center justify-between p-3 rounded-t-lg mb-2">
-                <h3 className="font-semibold text-lg">{column.name}</h3>
-                <span className="text-sm font-medium text-muted-foreground bg-muted rounded-full px-2 py-0.5">
-                  {column.items.length}
-                </span>
+        <div className="flex space-x-4">
+          {columnOrder.map((columnId) => {
+            const column = columns[columnId];
+            if (!column) return null;
+            return (
+              <div key={columnId} className="flex flex-col w-80 flex-shrink-0">
+                <div className="flex items-center justify-between p-3 rounded-t-lg mb-2">
+                  <h3 className="font-semibold text-lg">{column.name}</h3>
+                  <span className="text-sm font-medium text-muted-foreground bg-muted rounded-full px-2 py-0.5">
+                    {column.items.length}
+                  </span>
+                </div>
+                
+                <Droppable key={columnId} droppableId={columnId}>
+                  {(provided, snapshot) => (
+                    <div
+                      ref={provided.innerRef}
+                      {...provided.droppableProps}
+                      className={`flex-1 p-2 rounded-b-lg transition-colors min-h-[150px]
+                        ${snapshot.isDraggingOver ? 'bg-primary/10' : ''}`}
+                    >
+                      {column.items.map((task, index) => (
+                        <TicketCard
+                          key={task.id}
+                          task={task}
+                          index={index}
+                          onClick={() => setSelectedTask(task)}
+                        />
+                      ))}
+                      {provided.placeholder}
+                    </div>
+                  )}
+                </Droppable>
+                 <Button variant="ghost" size="sm" className="mt-2" onClick={() => handleAddTask(columnId)}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Añadir Tarea
+                </Button>
               </div>
-              
-              <Droppable key={columnId} droppableId={columnId}>
-                {(provided, snapshot) => (
-                  <div
-                    ref={provided.innerRef}
-                    {...provided.droppableProps}
-                    className={`flex-1 p-2 rounded-b-lg transition-colors min-h-[150px]
-                      ${snapshot.isDraggingOver ? 'bg-primary/10' : ''}`}
-                  >
-                    {column.items.map((task, index) => (
-                      <TicketCard
-                        key={task.id}
-                        task={task}
-                        index={index}
-                        onClick={() => setSelectedTask(task)}
-                      />
-                    ))}
-                    {provided.placeholder}
-                  </div>
-                )}
-              </Droppable>
-               <Button variant="ghost" size="sm" className="mt-2" onClick={() => handleAddTask(columnId)}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Añadir Tarea
-              </Button>
-            </div>
-          )
-        })}
+            )
+          })}
+        </div>
       </DragDropContext>
       <TaskDetailsSheet
         task={selectedTask}

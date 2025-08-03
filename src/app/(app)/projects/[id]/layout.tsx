@@ -14,8 +14,9 @@ const ProjectContext = createContext<Project | null>(null);
 // Custom hook to use the project context
 export const useProject = () => {
   const context = useContext(ProjectContext);
-  if (!context) {
-    throw new Error('useProject debe ser utilizado dentro de un ProjectProvider');
+  if (context === undefined) {
+    // Return null or a default value if context is not yet available
+    return null;
   }
   return context;
 };
@@ -68,7 +69,7 @@ export default function ProjectLayout({
     <ProjectContext.Provider value={project}>
       <div className="flex flex-col h-full">
         <ProjectHeader project={project} />
-        <div className="flex-1 overflow-y-auto">{children}</div>
+        <div className="flex-1 overflow-y-auto pt-6">{children}</div>
       </div>
     </ProjectContext.Provider>
   );

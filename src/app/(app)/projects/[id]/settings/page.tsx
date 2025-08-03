@@ -1,7 +1,7 @@
 
 'use client';
 
-import { getProjectById, inviteTeamMember, removeTeamMember } from '@/lib/firebase-services';
+import { getProjectById, inviteTeamMember, removeTeamMember, updateTeamMemberRole } from '@/lib/firebase-services';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -58,7 +58,7 @@ export default function ProjectSettingsPage() {
     setIsInviting(true);
     try {
       const newMember = await inviteTeamMember(project.id, inviteEmail);
-      setProject(prev => prev ? { ...prev, team: [...prev.team, newMember] } : null);
+      // The onSnapshot listener will update the state automatically
       setInviteEmail('');
       toast({
         title: 'Invitación Enviada',
@@ -80,7 +80,7 @@ export default function ProjectSettingsPage() {
     if (!project) return;
     try {
       await removeTeamMember(project.id, memberId);
-      setProject(prev => prev ? { ...prev, team: prev.team.filter(m => m.id !== memberId) } : null);
+      // The onSnapshot listener will update the state automatically
       toast({
         title: 'Miembro Eliminado',
         description: 'El miembro del equipo ha sido eliminado del proyecto.'
@@ -92,6 +92,24 @@ export default function ProjectSettingsPage() {
         title: 'Error',
         description: 'No se pudo eliminar al miembro del equipo.',
       })
+    }
+  }
+
+  const handleRoleChange = async (memberId: string, role: 'Admin' | 'Miembro') => {
+    if (!project) return;
+    try {
+        await updateTeamMemberRole(project.id, memberId, role);
+        toast({
+            title: 'Rol Actualizado',
+            description: `El rol del miembro ha sido cambiado a ${role}.`
+        })
+    } catch (error) {
+        console.error(error);
+        toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'No se pudo actualizar el rol del miembro.'
+        });
     }
   }
 
@@ -165,13 +183,17 @@ export default function ProjectSettingsPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 w-full sm:w-auto">
-                  <Select defaultValue={member.role.toLowerCase()} disabled={!canManageTeam || member.id === user?.uid}>
+                  <Select 
+                    defaultValue={member.role}
+                    onValueChange={(value: 'Admin' | 'Miembro') => handleRoleChange(member.id, value)}
+                    disabled={!canManageTeam || member.id === user?.uid}
+                  >
                     <SelectTrigger className="w-full sm:w-32">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="admin">Admin</SelectItem>
-                      <SelectItem value="member">Miembro</SelectItem>
+                      <SelectItem value="Admin">Admin</SelectItem>
+                      <SelectItem value="Miembro">Miembro</SelectItem>
                     </SelectContent>
                   </Select>
                   <AlertDialog>

@@ -270,3 +270,18 @@ export async function removeTeamMember(projectId: string, memberId: string) {
         });
     }
 }
+
+export async function updateTeamMemberRole(projectId: string, memberId: string, role: 'Admin' | 'Miembro') {
+    const projectRef = doc(db, 'projects', projectId);
+    const projectSnap = await getDoc(projectRef);
+    if (projectSnap.exists()) {
+        const projectData = projectSnap.data();
+        const updatedTeam = projectData.team.map((member: TeamMember) => 
+            member.id === memberId ? { ...member, role } : member
+        );
+        
+        await updateDoc(projectRef, {
+            team: updatedTeam,
+        });
+    }
+}

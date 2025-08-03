@@ -24,7 +24,7 @@ export default function ProjectLayout({
         if (proj) {
           setProject(proj);
         } else {
-          // Project not found
+          // Project not found, handle this case
         }
         setLoading(false);
       });

@@ -2,11 +2,8 @@
 'use client';
 
 import { KanbanBoard } from '@/components/tasks/kanban-board';
-import { getProjectById } from '@/lib/firebase-services';
-import { useEffect, useState } from 'react';
 import type { Project } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useParams } from 'next/navigation';
 
 // The project prop is passed down from the ProjectLayout
 export default function ProjectBoardPage({ project }: { project: Project }) {

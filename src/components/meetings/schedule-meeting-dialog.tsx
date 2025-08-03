@@ -21,6 +21,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { getTeamsForProject, createNotificationsForUsers } from '@/lib/firebase-services';
 import { Checkbox } from '../ui/checkbox';
 import { SocialIcon } from 'react-social-icons';
+import { cn } from '@/lib/utils';
 
 interface ScheduleMeetingDialogProps {
   project: Project;

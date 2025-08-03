@@ -1,4 +1,3 @@
-
 import {
   Sheet,
   SheetContent,
@@ -35,6 +34,8 @@ import {
   MessageSquare,
   Edit,
   MoreHorizontal,
+  Save,
+  CheckCircle,
 } from 'lucide-react';
 import type { Task, Project, TaskPriority, TaskStatus, Subtask, SubtaskStatus, Comment } from '@/lib/types';
 import { Calendar } from '../ui/calendar';
@@ -43,7 +44,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { format, formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { TaskAssigner } from '../ai/task-assigner';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { deleteTask, updateTask, addCommentToTask, updateCommentInTask, deleteCommentFromTask, createNotification } from '@/lib/firebase-services';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -62,6 +63,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { Badge } from '../ui/badge';
 import { doc, collection } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { debounce } from 'lodash';
 
 
 interface TaskDetailsSheetProps {
@@ -72,35 +74,20 @@ interface TaskDetailsSheetProps {
   onUpdate: (task: Task) => void;
 }
 
-const priorityMap: Record<TaskPriority, string> = {
-    low: 'Baja',
-    medium: 'Media',
-    high: 'Alta',
-    urgent: 'Urgente'
-}
-
-const statusMap: Record<TaskStatus, string> = {
-    backlog: 'Pendiente',
-    'in-progress': 'En Progreso',
-    review: 'En Revisión',
-    done: 'Hecho'
-}
+type SavingStatus = 'idle' | 'saving' | 'saved';
 
 export function TaskDetailsSheet({ task: initialTask, project, isOpen, onClose, onUpdate }: TaskDetailsSheetProps) {
   const [task, setTask] = useState(initialTask);
-  const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
   const [newComment, setNewComment] = useState('');
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editingCommentText, setEditingCommentText] = useState('');
+  const [savingStatus, setSavingStatus] = useState<SavingStatus>('idle');
 
   const { toast } = useToast();
   const { user } = useAuth();
   
-  const isEditing = true;
-
-  // This ref helps prevent saving the initial (potentially stale) state on first load
   const isMounted = useRef(false);
 
   useEffect(() => {
@@ -110,45 +97,64 @@ export function TaskDetailsSheet({ task: initialTask, project, isOpen, onClose, 
 
   useEffect(() => {
     setTask(initialTask);
+    setSavingStatus('idle');
   }, [initialTask]);
-
-  if (!task) return null;
+  
+  // Debounced save function
+  const debouncedSave = useCallback(
+    debounce(async (updatedTask: Task) => {
+      setSavingStatus('saving');
+      const { id, ...taskData } = updatedTask;
+      try {
+        await updateTask(project.id, id, taskData);
+        if (isMounted.current) {
+            setSavingStatus('saved');
+             setTimeout(() => {
+                if (isMounted.current) setSavingStatus('idle');
+            }, 2000);
+        }
+      } catch (error) {
+        console.error("Error auto-saving task:", error);
+        toast({ variant: 'destructive', title: 'Error de guardado', description: 'No se pudieron guardar los últimos cambios.' });
+        if (isMounted.current) setSavingStatus('idle');
+      }
+    }, 1000), // 1 second delay
+    [project.id, toast]
+  );
 
   const handleLocalChange = (field: keyof Task, value: any) => {
     if (!task) return;
     const updatedTask = { ...task, [field]: value };
     
-    // Also update assigneeId if assignee changes
     if (field === 'assignee') {
         updatedTask.assigneeId = value ? value.id : null;
     }
     
     setTask(updatedTask);
+    debouncedSave(updatedTask);
+  };
+
+  const handleSubtaskChange = async (updatedSubtasks: Subtask[]) => {
+      if (!task) return;
+      setTask(prev => prev ? { ...prev, subtasks: updatedSubtasks } : null);
+      setSavingStatus('saving');
+      try {
+        await updateTask(project.id, task.id, { subtasks: updatedSubtasks });
+        setSavingStatus('saved');
+        setTimeout(() => setSavingStatus('idle'), 2000);
+      } catch (error) {
+        console.error("Error saving subtasks:", error);
+        setSavingStatus('idle');
+      }
   };
   
-  const handleDebouncedSave = async (updatedTask: Task) => {
-     const { id, ...taskData } = updatedTask;
-     await updateTask(project.id, id, taskData);
-  }
-
-  const handleAssigneeChange = (value: string) => {
-    const assignee = project.team.find(m => m.id === value);
-    handleLocalChange('assignee', assignee || null);
-  }
-  
-  const handleSubtaskStatusChange = async (subtaskId: string, status: SubtaskStatus) => {
-    if (!task) return;
-
-    const updatedSubtasks = task.subtasks?.map(st =>
+  const handleSubtaskStatusChange = (subtaskId: string, status: SubtaskStatus) => {
+    if (!task || !task.subtasks) return;
+    const updatedSubtasks = task.subtasks.map(st =>
       st.id === subtaskId ? { ...st, status } : st
     );
-    
-    // Update local state immediately for responsiveness
-    setTask(prev => prev ? { ...prev, subtasks: updatedSubtasks } : null);
+    handleSubtaskChange(updatedSubtasks);
 
-    // Persist to Firestore
-    await updateTask(project.id, task.id, { subtasks: updatedSubtasks });
-    
     if (status === 'completed' && user && task.assignee && task.assignee.id !== user.uid) {
         createNotification({
             userId: task.assignee.id,
@@ -158,7 +164,7 @@ export function TaskDetailsSheet({ task: initialTask, project, isOpen, onClose, 
     }
   };
   
-  const handleAddSubtask = async () => {
+  const handleAddSubtask = () => {
     if (!newSubtaskTitle.trim() || !task) return;
     const newSubtask: Subtask = {
       id: doc(collection(db, 'dummy')).id,
@@ -166,25 +172,18 @@ export function TaskDetailsSheet({ task: initialTask, project, isOpen, onClose, 
       status: 'pending',
     };
     const updatedSubtasks = [...(task.subtasks || []), newSubtask];
-    
-    setTask(prev => prev ? { ...prev, subtasks: updatedSubtasks } : null);
     setNewSubtaskTitle('');
-
-    await updateTask(project.id, task.id, { subtasks: updatedSubtasks });
+    handleSubtaskChange(updatedSubtasks);
   };
   
-  const handleDeleteSubtask = async (subtaskId: string) => {
-    if (!task) return;
-    const updatedSubtasks = task.subtasks?.filter(st => st.id !== subtaskId);
-
-    setTask(prev => prev ? { ...prev, subtasks: updatedSubtasks } : null);
-
-    await updateTask(project.id, task.id, { subtasks: updatedSubtasks });
+  const handleDeleteSubtask = (subtaskId: string) => {
+    if (!task || !task.subtasks) return;
+    const updatedSubtasks = task.subtasks.filter(st => st.id !== subtaskId);
+    handleSubtaskChange(updatedSubtasks);
   }
 
   const handleAddComment = async () => {
     if (!newComment.trim() || !task || !user) return;
-    
     await addCommentToTask(project.id, task.id, newComment, user);
     setNewComment('');
   }
@@ -222,30 +221,6 @@ export function TaskDetailsSheet({ task: initialTask, project, isOpen, onClose, 
       }
   }
 
-  const handleSaveAndClose = async () => {
-    if (!task) return;
-    setIsSaving(true);
-    try {
-        const { id, ...taskData } = task;
-        await updateTask(project.id, id, taskData);
-        onUpdate(task); 
-        toast({
-            title: 'Tarea Actualizada',
-            description: `Se han guardado los cambios para "${task.title}".`
-        })
-        onClose();
-    } catch (error) {
-        console.error("Error saving task:", error);
-        toast({
-            variant: 'destructive',
-            title: 'Error',
-            description: 'No se pudieron guardar los cambios.'
-        })
-    } finally {
-        setIsSaving(false);
-    }
-  }
-
   const handleDelete = async () => {
     if(!task) return;
     setIsDeleting(true);
@@ -267,35 +242,26 @@ export function TaskDetailsSheet({ task: initialTask, project, isOpen, onClose, 
         setIsDeleting(false);
     }
   }
-  
-  const handleCancel = () => {
-      setTask(initialTask); // Revert changes
-      onClose();
-  }
 
   const sortedComments = [...(task?.comments || [])].sort(
     (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
   );
 
+  if (!task) return null;
+
   return (
-    <Sheet open={isOpen} onOpenChange={(open) => {
-      if (!open) {
-        onClose();
-      }
-    }}>
+    <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <SheetContent className="w-full sm:max-w-xl md:max-w-2xl flex flex-col">
         <SheetHeader>
           <div className="flex justify-between items-start">
             <div className="flex-1 pr-10">
-                <SheetTitle>
-                    <Input
-                        id="title"
-                        value={task?.title || ''}
-                        onChange={(e) => handleLocalChange('title', e.target.value)}
-                        className="text-2xl font-semibold border-none -ml-3 h-auto p-0 focus-visible:ring-1 focus-visible:ring-ring"
-                        placeholder="Título de la tarea"
-                    />
-                </SheetTitle>
+                <Input
+                    id="title"
+                    value={task?.title || ''}
+                    onChange={(e) => handleLocalChange('title', e.target.value)}
+                    className="text-2xl font-semibold border-none -ml-3 h-auto p-0 focus-visible:ring-1 focus-visible:ring-ring"
+                    placeholder="Título de la tarea"
+                />
                 <SheetDescription>
                     En el proyecto <span className="font-semibold text-primary">{project.name}</span>
                 </SheetDescription>
@@ -330,12 +296,14 @@ export function TaskDetailsSheet({ task: initialTask, project, isOpen, onClose, 
                         />
                         <Input
                             value={subtask.title}
-                            onBlur={async (e) => {
+                            onBlur={(e) => {
                                 const newTitle = e.target.value;
-                                const updatedSubtasks = task.subtasks?.map(st => st.id === subtask.id ? {...st, title: newTitle} : st);
-                                await updateTask(project.id, task.id, { subtasks: updatedSubtasks });
+                                if (task.subtasks?.find(st => st.id === subtask.id)?.title !== newTitle) {
+                                    const updatedSubtasks = task.subtasks?.map(st => st.id === subtask.id ? {...st, title: newTitle} : st);
+                                    handleSubtaskChange(updatedSubtasks || []);
+                                }
                             }}
-                             onChange={(e) => {
+                            onChange={(e) => {
                                 const newTitle = e.target.value;
                                 setTask(prev => prev ? {
                                     ...prev,
@@ -372,7 +340,7 @@ export function TaskDetailsSheet({ task: initialTask, project, isOpen, onClose, 
                   <User className="inline-block mr-2 h-4 w-4" />
                   Asignado a
                 </Label>
-                <Select value={task?.assignee?.id} onValueChange={handleAssigneeChange}>
+                <Select value={task?.assignee?.id} onValueChange={(v) => handleLocalChange('assignee', project.team.find(m => m.id === v) || null)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Seleccionar asignado..." />
                   </SelectTrigger>
@@ -534,12 +502,12 @@ export function TaskDetailsSheet({ task: initialTask, project, isOpen, onClose, 
 
           </div>
         </div>
-        <SheetFooter className="pt-4 border-t">
+        <SheetFooter className="pt-4 border-t flex justify-between items-center">
           <AlertDialog>
             <AlertDialogTrigger asChild>
                <Button variant="destructive" className="mr-auto" disabled={isDeleting}>
                 {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
-                Eliminar Tarea
+                Eliminar
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
@@ -558,13 +526,11 @@ export function TaskDetailsSheet({ task: initialTask, project, isOpen, onClose, 
             </AlertDialogContent>
           </AlertDialog>
          
-          <Button variant="outline" onClick={handleCancel}>
-            Cancelar
-          </Button>
-          <Button onClick={handleSaveAndClose} disabled={isSaving}>
-            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Guardar y Cerrar
-          </Button>
+           <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                {savingStatus === 'saving' && <> <Loader2 className="h-4 w-4 animate-spin" /> <span>Guardando...</span> </>}
+                {savingStatus === 'saved' && <> <CheckCircle className="h-4 w-4 text-green-500" /> <span>Guardado</span> </>}
+           </div>
+
         </SheetFooter>
 
       </SheetContent>

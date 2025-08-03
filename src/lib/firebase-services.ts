@@ -352,32 +352,31 @@ export async function updateTaskOrder(projectId: string, taskId: string, order: 
 export async function updateTask(projectId: string, taskId:string, taskData: Partial<Omit<Task, 'id' | 'comments'>>) {
     const taskRef = doc(db, 'projects', projectId, 'tasks', taskId);
     
+    // Create a shallow copy to avoid modifying the original object
     const dataToUpdate: { [key: string]: any } = { ...taskData };
 
+    // Explicitly handle assigneeId based on assignee
     if ('assignee' in dataToUpdate) {
         dataToUpdate.assigneeId = dataToUpdate.assignee ? dataToUpdate.assignee.id : null;
     }
-    
+
+    // Firestore cannot handle 'undefined', so we remove those fields.
     Object.keys(dataToUpdate).forEach(key => {
         if (dataToUpdate[key] === undefined) {
             delete dataToUpdate[key];
         }
     });
-    
-    if ('subtasks' in dataToUpdate) {
-        dataToUpdate.subtasks = dataToUpdate.subtasks || [];
-    }
 
     await updateDoc(taskRef, dataToUpdate);
 }
 
-export async function createTask(projectId: string, taskData: Omit<Task, 'id' | 'order' | 'comments'> & {order: number}) {
+export async function createTask(projectId: string, taskData: Omit<Task, 'id' | 'comments'>) {
     const tasksRef = collection(db, 'projects', projectId, 'tasks');
     
     const dataToCreate: any = {
         ...taskData,
         assigneeId: taskData.assignee ? taskData.assignee.id : null,
-        subtasks: [],
+        subtasks: taskData.subtasks || [],
         comments: [],
     };
     
@@ -402,24 +401,13 @@ export async function deleteTask(projectId: string, taskId: string) {
 export async function addCommentToTask(projectId: string, taskId: string, text: string, user: User) {
     const taskRef = doc(db, 'projects', projectId, 'tasks', taskId);
 
-    const commentData: Omit<Comment, 'id' | 'authorAvatarUrl'> & { authorAvatarUrl?: string } = {
+    const newComment: Comment = {
+        id: doc(collection(db, 'dummy')).id,
         text: text,
         authorId: user.uid,
         authorName: user.displayName || 'Usuario',
         createdAt: new Date(),
-    };
-
-    if (user.photoURL) {
-        commentData.authorAvatarUrl = user.photoURL;
-    }
-    
-    const newComment: Comment = {
-        id: doc(collection(db, 'dummy')).id,
-        text: commentData.text,
-        authorId: commentData.authorId,
-        authorName: commentData.authorName,
-        createdAt: commentData.createdAt,
-        ...(commentData.authorAvatarUrl && { authorAvatarUrl: commentData.authorAvatarUrl }),
+        ...(user.photoURL && { authorAvatarUrl: user.photoURL }),
     };
 
     await updateDoc(taskRef, {

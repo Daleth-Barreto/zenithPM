@@ -17,6 +17,7 @@ import type { SignUpData, SignInData } from '@/lib/types';
 
 interface AuthContextType {
   user: User | null;
+  setUser: React.Dispatch<React.SetStateAction<User | null>>; // Expose setUser
   loading: boolean;
   signIn: (email: SignInData['email'], password: SignInData['password']) => Promise<any>;
   signUp: (email: SignUpData['email'], password: SignUpData['password'], fullName: SignUpData['fullName']) => Promise<any>;
@@ -61,6 +62,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const value = {
     user,
+    setUser,
     loading,
     signIn,
     signUp,

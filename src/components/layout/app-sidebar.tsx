@@ -65,9 +65,6 @@ export function AppSidebar() {
 
   return (
     <Sidebar>
-      <SheetHeader>
-        <SheetTitle className="sr-only">Sidebar Navigation</SheetTitle>
-      </SheetHeader>
       <SidebarHeader>
         <div className={cn("flex items-center gap-2", isSidebarCollapsed && "justify-center")}>
           <Logo className="h-8 w-8 text-primary" />

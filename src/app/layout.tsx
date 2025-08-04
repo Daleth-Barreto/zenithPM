@@ -16,6 +16,7 @@ export const metadata: Metadata = {
   creator: 'ZenithPM',
   publisher: 'ZenithPM',
   robots: 'index, follow',
+  manifest: '/manifest.json',
   openGraph: {
     type: 'website',
     url: 'https://zenithpm.vercel.app/',
@@ -47,6 +48,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es" suppressHydrationWarning>
+      <head>
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#1e293b" />
+      </head>
       <body>
         <ThemeProvider
           attribute="class"

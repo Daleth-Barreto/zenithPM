@@ -20,7 +20,6 @@ import {
   SidebarMenuButton,
   SidebarMenuSub,
   SidebarMenuSubButton,
-  SidebarMenuSubItem,
   useSidebar
 } from '@/components/ui/sidebar';
 import { Logo } from '@/components/logo';
@@ -33,6 +32,7 @@ import { useEffect, useState } from 'react';
 import type { Project } from '@/lib/types';
 import { getProjectsForUser } from '@/lib/firebase-services';
 import { cn } from '@/lib/utils';
+import { ScrollArea } from '../ui/scroll-area';
 
 export function AppSidebar() {
   const pathname = usePathname();

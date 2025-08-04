@@ -20,7 +20,6 @@ import {
   SidebarMenuButton,
   SidebarMenuSub,
   SidebarMenuSubButton,
-  SidebarMenuSubItem,
   useSidebar
 } from '@/components/ui/sidebar';
 import { Logo } from '@/components/logo';
@@ -91,22 +90,22 @@ export function AppSidebar() {
               </SidebarMenuItem>
               <CollapsibleContent>
                  <SidebarMenuSub>
-                    <SidebarMenuSubItem>
+                    <SidebarMenuItem>
                       <SidebarMenuSubButton asChild isActive={isActive('/dashboard')}>
                           <Link href="/dashboard">
                             <LayoutDashboard />
                             <span>Panel</span>
                           </Link>
                       </SidebarMenuSubButton>
-                    </SidebarMenuSubItem>
-                    <SidebarMenuSubItem>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
                       <SidebarMenuSubButton asChild isActive={isActive('/my-tasks')}>
                           <Link href="/my-tasks">
                             <CheckSquare />
                             <span>Mis Tareas</span>
                           </Link>
                       </SidebarMenuSubButton>
-                    </SidebarMenuSubItem>
+                    </SidebarMenuItem>
                  </SidebarMenuSub>
               </CollapsibleContent>
           </Collapsible>
@@ -126,7 +125,7 @@ export function AppSidebar() {
             <CollapsibleContent>
               <SidebarMenuSub>
                 {projects.map((project) => (
-                  <SidebarMenuSubItem key={project.id}>
+                  <SidebarMenuItem key={project.id}>
                     <SidebarMenuSubButton asChild isActive={isActive(`/projects/${project.id}`)}>
                       <Link href={`/projects/${project.id}/board`}>
                         <span
@@ -136,7 +135,7 @@ export function AppSidebar() {
                         <span>{project.name}</span>
                       </Link>
                     </SidebarMenuSubButton>
-                  </SidebarMenuSubItem>
+                  </SidebarMenuItem>
                 ))}
               </SidebarMenuSub>
             </CollapsibleContent>

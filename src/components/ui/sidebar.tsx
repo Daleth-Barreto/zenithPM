@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
-import { Sheet, SheetContent } from "@/components/ui/sheet"
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   Tooltip,
@@ -187,6 +187,9 @@ const Sidebar = React.forwardRef<
             side={side}
             className="w-[var(--sidebar-width)] p-0"
           >
+            <SheetHeader>
+                <SheetTitle className="sr-only">Sidebar Navigation</SheetTitle>
+            </SheetHeader>
             {children}
           </SheetContent>
         </Sheet>
@@ -645,7 +648,7 @@ SidebarMenuSub.displayName = "SidebarMenuSub"
 const SidebarMenuSubItem = React.forwardRef<
   HTMLLIElement,
   React.ComponentProps<"li">
->(({ ...props }, ref) => <li ref={ref} {...props} />)
+>(({ ...props }, ref) => <li ref={ref} data-sidebar="menu-sub-item" {...props} />)
 SidebarMenuSubItem.displayName = "SidebarMenuSubItem"
 
 const SidebarMenuSubButton = React.forwardRef<

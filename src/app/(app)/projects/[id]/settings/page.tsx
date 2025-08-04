@@ -1,7 +1,7 @@
 
 'use client';
 
-import { inviteTeamMember, removeTeamMember, updateTeamMemberRole } from '@/lib/firebase-services';
+import { inviteTeamMember, removeTeamMember, updateTeamMemberRole, deleteProject } from '@/lib/firebase-services';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -27,15 +27,18 @@ import {
 import { useAuth } from '@/contexts/auth-context';
 import { useProject } from '../layout';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useRouter } from 'next/navigation';
 
 
 export default function ProjectSettingsPage() {
   const project = useProject();
   const { user } = useAuth();
   const { toast } = useToast();
+  const router = useRouter();
   
   const [isInviting, setIsInviting] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const handleInviteMember = async () => {
     if (!inviteEmail || !project || !user) return;
@@ -114,6 +117,29 @@ export default function ProjectSettingsPage() {
         });
     }
   }
+  
+  const handleDeleteProject = async () => {
+    if (!project) return;
+    setIsDeleting(true);
+    try {
+      await deleteProject(project.id);
+      toast({
+        title: 'Proyecto Eliminado',
+        description: 'El proyecto ha sido eliminado permanentemente.',
+      });
+      router.push('/dashboard');
+    } catch (error) {
+      console.error(error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'No se pudo eliminar el proyecto.',
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  }
+
 
   if (!project) {
     return (
@@ -139,6 +165,7 @@ export default function ProjectSettingsPage() {
   }
   
   const canManageTeam = project.team.find(m => m.id === user?.uid)?.role === 'Admin';
+  const isOwner = project.ownerId === user?.uid;
 
   return (
     <div className="p-4 md:p-8 space-y-8">
@@ -241,16 +268,37 @@ export default function ProjectSettingsPage() {
           )}
         </CardContent>
       </Card>
-
-      <Card className="border-destructive">
-        <CardHeader>
-          <CardTitle className="text-destructive">Zona de Peligro</CardTitle>
-          <CardDescription>Estas acciones son irreversibles. Procede con precaución.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button variant="destructive">Eliminar Proyecto</Button>
-        </CardContent>
-      </Card>
+      
+      {isOwner && (
+        <Card className="border-destructive">
+          <CardHeader>
+            <CardTitle className="text-destructive">Zona de Peligro</CardTitle>
+            <CardDescription>Esta acción es irreversible. Procede con precaución.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive">Eliminar Proyecto</Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>¿Estás absolutamente seguro?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Esta acción no se puede deshacer. Esto eliminará permanentemente tu proyecto y todos los datos asociados, incluidas las tareas.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDeleteProject} disabled={isDeleting}>
+                      {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Sí, eliminar este proyecto
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

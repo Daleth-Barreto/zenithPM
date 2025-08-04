@@ -137,6 +137,7 @@ export async function createProject(
   return {
     id: newProjectRef.id,
     ...projectData,
+    ownerId: user.uid,
     progress: 0,
     tasks: [],
     team: [owner],
@@ -186,6 +187,24 @@ export function getProjectById(projectId: string, callback: (project: Project | 
     });
 
     return unsubscribe;
+}
+
+export async function deleteProject(projectId: string) {
+    const projectRef = doc(db, 'projects', projectId);
+    const tasksRef = collection(db, 'projects', projectId, 'tasks');
+    
+    const batch = writeBatch(db);
+
+    // Delete all tasks in the project
+    const tasksSnapshot = await getDocs(tasksRef);
+    tasksSnapshot.forEach(taskDoc => {
+        batch.delete(taskDoc.ref);
+    });
+
+    // Delete the project itself
+    batch.delete(projectRef);
+
+    await batch.commit();
 }
 
 

@@ -12,7 +12,7 @@ export default function ProjectBoardPage() {
     return (
         <div className="p-4 md:p-8 flex-1 space-x-4 flex overflow-x-auto h-full">
             {[...Array(4)].map((_, i) => (
-                <div key={i} className="flex flex-col w-72 lg:w-80 flex-shrink-0 space-y-3">
+                <div key={i} className="flex flex-col w-[80vw] sm:w-72 lg:w-80 flex-shrink-0 space-y-3">
                     <Skeleton className="h-10 w-full" />
                     <Skeleton className="h-24 w-full" />
                     <Skeleton className="h-32 w-full" />

@@ -20,6 +20,7 @@ import {
   TrendingUp,
   HelpCircle,
   Check,
+  PanelTop,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -29,6 +30,13 @@ import { cn } from '@/lib/utils';
 import { useState } from 'react';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet';
 
 function ProjectManagementIllustration(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -235,13 +243,50 @@ export default function LandingPage() {
               <Logo className="h-8 w-8 text-primary" />
               <span className="text-xl font-bold">ZenithPM</span>
             </div>
-            <div className="flex items-center gap-2">
+            {/* Desktop Nav */}
+            <nav className="hidden md:flex items-center gap-4 text-sm font-medium">
+              <Link href="#features" className="text-muted-foreground hover:text-foreground">Características</Link>
+              <Link href="#pricing" className="text-muted-foreground hover:text-foreground">Precios</Link>
+              <Link href="#faq" className="text-muted-foreground hover:text-foreground">FAQ</Link>
+            </nav>
+            <div className="hidden md:flex items-center gap-2">
               <Button variant="ghost" asChild>
                 <Link href="/login">Iniciar Sesión</Link>
               </Button>
               <Button asChild>
                 <Link href="/signup">Registrarse Gratis</Link>
               </Button>
+            </div>
+            {/* Mobile Nav */}
+            <div className="md:hidden">
+                <Sheet>
+                    <SheetTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                            <PanelTop />
+                            <span className="sr-only">Abrir menú</span>
+                        </Button>
+                    </SheetTrigger>
+                    <SheetContent side="top">
+                        <SheetHeader>
+                             <SheetTitle className="flex items-center gap-2">
+                                <Logo className="h-8 w-8 text-primary" />
+                                <span className="text-xl font-bold">ZenithPM</span>
+                             </SheetTitle>
+                        </SheetHeader>
+                        <nav className="grid gap-4 py-6 text-lg">
+                           <Link href="#features" className="text-muted-foreground hover:text-foreground">Características</Link>
+                           <Link href="#pricing" className="text-muted-foreground hover:text-foreground">Precios</Link>
+                           <Link href="#faq" className="text-muted-foreground hover:text-foreground">FAQ</Link>
+                           <Separator />
+                           <Button variant="ghost" asChild className="justify-start">
+                             <Link href="/login">Iniciar Sesión</Link>
+                           </Button>
+                           <Button asChild>
+                             <Link href="/signup">Registrarse Gratis</Link>
+                           </Button>
+                        </nav>
+                    </SheetContent>
+                </Sheet>
             </div>
           </div>
         </header>
@@ -413,7 +458,7 @@ export default function LandingPage() {
           </section>
           
           {/* FAQ Section */}
-          <section className="py-16 md:py-20">
+          <section id="faq" className="py-16 md:py-20">
             <div className="container mx-auto px-4 md:px-6">
               <div className="text-center mb-12">
                 <h2 className="text-3xl md:text-4xl font-bold">Preguntas Frecuentes</h2>

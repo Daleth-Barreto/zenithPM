@@ -87,8 +87,8 @@ export default function ProjectCalendarPage() {
 
   if (loading || !project) {
     return (
-      <div className="p-4 md:p-8 grid gap-8 grid-cols-1 md:grid-cols-3">
-        <div className="md:col-span-2"><Skeleton className="h-[500px] w-full" /></div >
+      <div className="p-4 md:p-8 grid gap-8 grid-cols-1 lg:grid-cols-3">
+        <div className="lg:col-span-2"><Skeleton className="h-[500px] w-full" /></div >
         <div><Skeleton className="h-[500px] w-full" /></div >
       </div>
     );
@@ -99,15 +99,15 @@ export default function ProjectCalendarPage() {
        <Card>
         <CardHeader>
             <CardTitle>Calendario del Proyecto</CardTitle>
-            <CardDescription>Visualiza las fechas de entrega y los hitos importantes de tu proyecto.</CardDescription>
+            <CardDescription>Visualiza las fechas de entrega de tu proyecto.</CardDescription>
         </CardHeader>
-         <CardContent className="grid gap-8 md:grid-cols-3">
-            <div className="md:col-span-2 flex flex-col items-center">
+         <CardContent className="grid gap-8 grid-cols-1 lg:grid-cols-3">
+            <div className="lg:col-span-2 flex flex-col items-center">
                  <Calendar
                     mode="single"
                     selected={selectedDate}
                     onSelect={setSelectedDate}
-                    className="rounded-md border p-4"
+                    className="rounded-md border p-4 w-full"
                     locale={es}
                     modifiers={modifiers}
                     modifiersStyles={modifiersStyles}

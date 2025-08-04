@@ -33,7 +33,7 @@ export default function DashboardPage() {
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-2 sm:space-y-0">
-        <h2 className="text-3xl font-bold tracking-tight" data-tour="dashboard-title">Portafolio de Proyectos</h2>
+        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight" data-tour="dashboard-title">Portafolio de Proyectos</h2>
         <div className="flex items-center space-x-2">
           <NewProjectDialog onProjectCreated={onProjectCreated} />
         </div>
@@ -62,7 +62,7 @@ export default function DashboardPage() {
         <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm mt-8 sm:mt-16 py-16 sm:py-24">
           <div className="flex flex-col items-center gap-2 text-center p-4">
             <FolderKanban className="h-16 w-16 text-muted-foreground" />
-            <h3 className="text-2xl font-bold tracking-tight">Aún no hay proyectos</h3>
+            <h3 className="text-xl sm:text-2xl font-bold tracking-tight">Aún no hay proyectos</h3>
             <p className="text-sm text-muted-foreground">
               Comienza creando tu primer proyecto.
             </p>

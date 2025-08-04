@@ -188,7 +188,7 @@ export default function ProjectSettingsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Gestión de Miembros Individuales</CardTitle>
+          <CardTitle>Gestión de Miembros</CardTitle>
           <CardDescription>Gestiona los miembros del proyecto y sus roles.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -209,7 +209,7 @@ export default function ProjectSettingsPage() {
                   <Select 
                     defaultValue={member.role}
                     onValueChange={(value: 'Admin' | 'Miembro') => handleRoleChange(member.id, value)}
-                    disabled={!canManageTeam || member.id === user?.uid}
+                    disabled={!canManageTeam || member.id === project.ownerId}
                   >
                     <SelectTrigger className="w-full sm:w-32">
                       <SelectValue />
@@ -221,7 +221,7 @@ export default function ProjectSettingsPage() {
                   </Select>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                       <Button variant="ghost" size="icon" className="text-muted-foreground" disabled={!canManageTeam || member.id === user?.uid}>
+                       <Button variant="ghost" size="icon" className="text-muted-foreground" disabled={!canManageTeam || member.id === project.ownerId}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </AlertDialogTrigger>
@@ -244,7 +244,7 @@ export default function ProjectSettingsPage() {
           </div>
           {canManageTeam && (
             <>
-              <Separator />
+              <Separator className="my-6" />
               <div>
                 <h4 className="font-medium mb-2">Invitar Miembro</h4>
                 <div className="flex flex-col sm:flex-row gap-2">

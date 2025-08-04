@@ -103,11 +103,11 @@ export default function ProjectAnalyticsPage() {
   return (
     <div className="p-4 md:p-8 space-y-8">
       <h2 className="text-2xl font-bold">Analíticas del Proyecto</h2>
-      <div className="grid gap-8 grid-cols-1 lg:grid-cols-2">
+      <div className="grid gap-8 grid-cols-1 xl:grid-cols-2">
          <Card>
             <CardHeader>
-                <CardTitle>Distribución de Tareas por Estado</CardTitle>
-                <CardDescription>Visualiza cuántas tareas hay en cada fase del flujo de trabajo.</CardDescription>
+                <CardTitle>Tareas por Estado</CardTitle>
+                <CardDescription>Visualiza cuántas tareas hay en cada fase.</CardDescription>
             </CardHeader>
             <CardContent>
                 <ChartContainer config={{}} className="h-80 w-full">
@@ -132,8 +132,8 @@ export default function ProjectAnalyticsPage() {
         
         <Card>
             <CardHeader>
-                <CardTitle>Carga de Trabajo por Miembro</CardTitle>
-                <CardDescription>Analiza cómo se distribuyen las tareas asignadas entre el equipo.</CardDescription>
+                <CardTitle>Carga de Trabajo</CardTitle>
+                <CardDescription>Analiza la distribución de tareas en el equipo.</CardDescription>
             </CardHeader>
             <CardContent>
                 <ChartContainer config={{}} className="h-80 w-full">

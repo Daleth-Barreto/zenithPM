@@ -35,7 +35,7 @@ export function ProjectHeader({ project }: ProjectHeaderProps) {
     <div className="border-b">
         <div className="p-4 md:p-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-                <h1 className="text-3xl font-bold tracking-tight">{project.name}</h1>
+                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{project.name}</h1>
                 <p className="text-muted-foreground mt-2">{project.description}</p>
             </div>
             <ScheduleMeetingDialog project={project} />

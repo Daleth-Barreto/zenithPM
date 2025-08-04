@@ -33,9 +33,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <div className="flex h-screen bg-background text-foreground">
         <AppSidebar />
       </div>
-      <div className="flex flex-1 flex-col min-w-0">
+      <div className="flex h-screen flex-1 flex-col min-w-0">
           <AppHeader />
-          <main className="flex-1 overflow-y-auto">{children}</main>
+          <main className="flex-1 overflow-y-scroll">{children}</main>
       </div>
     </SidebarProvider>
   );

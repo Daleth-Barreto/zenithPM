@@ -150,8 +150,8 @@ export default function ProjectTeamsPage() {
     <div className="p-4 md:p-8 space-y-8">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-2 sm:space-y-0">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Equipos del Proyecto</h2>
-          <p className="text-muted-foreground">Gestiona los equipos de colaboración para este proyecto.</p>
+          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Equipos del Proyecto</h2>
+          <p className="text-muted-foreground">Gestiona los equipos de colaboración.</p>
         </div>
         <NewTeamDialog projectId={project.id} onTeamCreated={onTeamCreated} />
       </div>
@@ -192,24 +192,24 @@ export default function ProjectTeamsPage() {
                         Gestionar Equipo
                       </Button>
                     </SheetTrigger>
-                    <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+                    <SheetContent className="w-full sm:max-w-lg flex flex-col">
                       <SheetHeader>
                         <SheetTitle>Gestionar: {selectedTeam?.name}</SheetTitle>
                         <SheetDescription>Añade o elimina miembros y gestiona sus roles.</SheetDescription>
                       </SheetHeader>
-                      <div className="py-6 space-y-6">
+                      <div className="py-6 space-y-6 flex-1 overflow-y-auto">
                         <Card>
                           <CardHeader><CardTitle>Miembros</CardTitle></CardHeader>
                           <CardContent className="space-y-4">
                             {selectedTeam?.members.map(member => (
                                 <div key={member.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-2 rounded-md hover:bg-muted/50">
                                     <div className="flex items-center gap-4">
-                                      <Avatar className="h-12 w-12">
+                                      <Avatar className="h-10 w-10">
                                           <AvatarImage src={member.avatarUrl} />
                                           <AvatarFallback>{member.initials}</AvatarFallback>
                                       </Avatar>
                                       <div>
-                                          <p className="font-medium text-lg">{member.name}</p>
+                                          <p className="font-medium">{member.name}</p>
                                           <p className="text-sm text-muted-foreground">{member.email}</p>
                                       </div>
                                     </div>
@@ -217,7 +217,7 @@ export default function ProjectTeamsPage() {
                                       <Select
                                           defaultValue={member.role}
                                           onValueChange={(value: 'Admin' | 'Miembro') => handleRoleChange(member.id, value)}
-                                          disabled={!selectedTeam || !canManageTeam(selectedTeam) || (member.id === user?.uid && selectedTeam.ownerId === user?.uid)}
+                                          disabled={!selectedTeam || !canManageTeam(selectedTeam) || (member.id === selectedTeam.ownerId)}
                                       >
                                           <SelectTrigger className="w-full sm:w-36">
                                               <SelectValue />
@@ -229,7 +229,7 @@ export default function ProjectTeamsPage() {
                                       </Select>
                                       <AlertDialog>
                                           <AlertDialogTrigger asChild>
-                                          <Button variant="ghost" size="icon" className="text-muted-foreground" disabled={!selectedTeam || !canManageTeam(selectedTeam) || (member.id === user?.uid && selectedTeam.ownerId === user?.uid)}>
+                                          <Button variant="ghost" size="icon" className="text-muted-foreground" disabled={!selectedTeam || !canManageTeam(selectedTeam) || (member.id === selectedTeam.ownerId)}>
                                               <Trash2 className="h-4 w-4" />
                                           </Button>
                                           </AlertDialogTrigger>
@@ -265,7 +265,7 @@ export default function ProjectTeamsPage() {
                                         />
                                         <Button onClick={handleAddMember} disabled={isInviting || !inviteEmail} className="mt-2 sm:mt-0">
                                             {isInviting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
-                                            Enviar Invitación
+                                            Invitar
                                         </Button>
                                     </div>
                                 </CardContent>
@@ -282,7 +282,7 @@ export default function ProjectTeamsPage() {
          <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm mt-8 sm:mt-16 py-16 sm:py-24">
           <div className="flex flex-col items-center gap-2 text-center p-4">
             <Users className="h-16 w-16 text-muted-foreground" />
-            <h3 className="text-2xl font-bold tracking-tight">Aún no hay equipos</h3>
+            <h3 className="text-xl sm:text-2xl font-bold tracking-tight">Aún no hay equipos</h3>
             <p className="text-sm text-muted-foreground">
               Comienza creando tu primer equipo para este proyecto.
             </p>

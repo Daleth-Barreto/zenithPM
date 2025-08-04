@@ -112,7 +112,7 @@ export default function LoginPage() {
   return (
     <div className="w-full lg:grid lg:min-h-screen lg:grid-cols-2">
        <div className="flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-        <Card className="w-full max-w-sm border-none shadow-none">
+        <Card className="w-full max-w-sm border-none shadow-none lg:border-solid lg:shadow-sm lg:p-6">
           <CardHeader>
             <div className="flex items-center justify-center mb-4">
               <Logo className="h-10 w-10 text-primary" />

@@ -84,12 +84,12 @@ export default function ProjectTimelinePage() {
        <Card>
         <CardHeader>
             <CardTitle>Cronograma del Proyecto</CardTitle>
-            <CardDescription>Visualiza la duración y la planificación de las tareas a lo largo del tiempo.</CardDescription>
+            <CardDescription>Visualiza la duración y la planificación de las tareas.</CardDescription>
         </CardHeader>
         <CardContent>
             {tasksWithDates.length > 0 ? (
                 <div className="overflow-x-auto">
-                    <div className="grid gap-y-2" style={{ gridTemplateColumns: `minmax(250px, 1fr) repeat(${totalDays > 0 ? totalDays : 1}, minmax(40px, 1fr))`}}>
+                    <div className="grid gap-y-2" style={{ gridTemplateColumns: `minmax(150px, 0.5fr) repeat(${totalDays > 0 ? totalDays : 1}, minmax(40px, 1fr))`}}>
                         {/* Header */}
                         <div className="sticky left-0 bg-background z-10 font-semibold p-2 border-b">Tarea</div>
                         {Array.from({ length: totalDays }).map((_, i) => (
@@ -112,7 +112,7 @@ export default function ProjectTimelinePage() {
                                 </div>
                                 <div className="col-span-full grid" style={{ gridTemplateColumns: `subgrid`}}>
                                     <div style={getBarStyles(task)} className="bg-primary/80 rounded-lg h-6 my-auto flex items-center px-2 text-primary-foreground text-xs truncate">
-                                        {task.title}
+                                        <span className="truncate">{task.title}</span>
                                     </div>
                                 </div>
                             </React.Fragment>
@@ -121,7 +121,7 @@ export default function ProjectTimelinePage() {
                 </div>
             ) : (
                 <div className="text-center py-16">
-                    <p className="text-muted-foreground">No hay tareas con fechas de entrega para mostrar en el cronograma.</p>
+                    <p className="text-muted-foreground">No hay tareas con fechas de entrega para mostrar.</p>
                     <p className="text-sm text-muted-foreground mt-2">Asegúrate de que tus tareas tengan `dueDate`.</p>
                 </div>
             )}

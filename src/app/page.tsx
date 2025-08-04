@@ -37,6 +37,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
+import { Separator } from '@/components/ui/separator';
 
 function ProjectManagementIllustration(props: React.SVGProps<SVGSVGElement>) {
   return (

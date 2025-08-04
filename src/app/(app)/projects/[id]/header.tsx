@@ -3,11 +3,19 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useState } from 'react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { Project } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ScheduleMeetingDialog } from '@/components/meetings/schedule-meeting-dialog';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
+import { Button } from '@/components/ui/button';
+import { PanelTopOpen, ChevronDown } from 'lucide-react';
 
 interface ProjectHeaderProps {
   project: Project;
@@ -15,6 +23,7 @@ interface ProjectHeaderProps {
 
 export function ProjectHeader({ project }: ProjectHeaderProps) {
   const pathname = usePathname();
+  const [isNavOpen, setIsNavOpen] = useState(true);
 
   const getActiveTab = () => {
     const segments = pathname.split('/');
@@ -40,17 +49,28 @@ export function ProjectHeader({ project }: ProjectHeaderProps) {
             </div>
             <ScheduleMeetingDialog project={project} />
         </div>
-       <ScrollArea className="w-full whitespace-nowrap">
-        <Tabs value={getActiveTab()} className="px-4 md:px-8 pb-px">
-          <TabsList>
-            {tabs.map((tab) => (
-              <TabsTrigger value={tab.id} key={tab.id} asChild>
-                <Link href={tab.href}>{tab.label}</Link>
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
-      </ScrollArea>
+        <Collapsible open={isNavOpen} onOpenChange={setIsNavOpen} className="px-4 md:px-8 pb-4">
+            <CollapsibleTrigger asChild>
+                <Button variant="outline" size="sm">
+                    <PanelTopOpen className="mr-2 h-4 w-4" />
+                     Menú
+                    <ChevronDown className={cn("h-4 w-4 ml-2 transition-transform", isNavOpen && "rotate-180")} />
+                </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+                <ScrollArea className="w-full whitespace-nowrap pt-4">
+                    <Tabs value={getActiveTab()} className="pb-px">
+                    <TabsList>
+                        {tabs.map((tab) => (
+                        <TabsTrigger value={tab.id} key={tab.id} asChild>
+                            <Link href={tab.href}>{tab.label}</Link>
+                        </TabsTrigger>
+                        ))}
+                    </TabsList>
+                    </Tabs>
+                </ScrollArea>
+            </CollapsibleContent>
+        </Collapsible>
     </div>
   );
 }

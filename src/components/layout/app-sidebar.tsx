@@ -99,15 +99,17 @@ export function AppSidebar() {
           </SidebarMenuItem>
 
           <Collapsible defaultOpen={true} data-tour="sidebar-projects">
-            <CollapsibleTrigger asChild>
-                <SidebarMenuButton className="justify-between group-data-[collapsible=icon]:justify-center">
-                    <div className="flex items-center gap-2">
-                        <FolderKanban />
-                        <span className={cn(isSidebarCollapsed && "hidden")}>Proyectos</span>
-                    </div>
-                    <ChevronDown className={cn("h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180", isSidebarCollapsed && "hidden")} />
-                </SidebarMenuButton>
-            </CollapsibleTrigger>
+            <SidebarMenuItem>
+              <CollapsibleTrigger asChild>
+                  <SidebarMenuButton className="justify-between group-data-[collapsible=icon]:justify-center">
+                      <div className="flex items-center gap-2">
+                          <FolderKanban />
+                          <span className={cn(isSidebarCollapsed && "hidden")}>Proyectos</span>
+                      </div>
+                      <ChevronDown className={cn("h-4 w-4 transition-transform duration-200 data-[state=open]:rotate-180", isSidebarCollapsed && "hidden")} />
+                  </SidebarMenuButton>
+              </CollapsibleTrigger>
+            </SidebarMenuItem>
             <CollapsibleContent>
               <SidebarMenuSub>
                 {projects.map((project) => (

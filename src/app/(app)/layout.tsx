@@ -8,12 +8,10 @@ import { useAuth } from '@/contexts/auth-context';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
-import { AppTour } from '@/components/app-tour';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const router = useRouter();
-  const [isTourOpen, setIsTourOpen] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -21,17 +19,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     }
   }, [user, loading, router]);
 
-  useEffect(() => {
-    const tourCompleted = localStorage.getItem('zenith_tour_completed');
-    if (user && !tourCompleted) {
-      setIsTourOpen(true);
-    }
-  }, [user]);
-
-  const handleTourComplete = () => {
-    localStorage.setItem('zenith_tour_completed', 'true');
-    setIsTourOpen(false);
-  };
 
   if (loading || !user) {
     return (
@@ -50,7 +37,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <AppHeader />
           <main className="flex-1 overflow-y-auto">{children}</main>
       </div>
-      <AppTour isTourOpen={isTourOpen} onTourComplete={handleTourComplete} />
     </SidebarProvider>
   );
 }

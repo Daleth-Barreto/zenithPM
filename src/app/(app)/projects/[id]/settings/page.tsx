@@ -168,7 +168,7 @@ export default function ProjectSettingsPage() {
   const isOwner = project.ownerId === user?.uid;
 
   return (
-    <div className="p-4 md:p-8 space-y-8 h-full overflow-y-auto">
+    <div className="p-4 md:p-8 space-y-8">
       <Card>
         <CardHeader>
           <CardTitle>Configuración General</CardTitle>

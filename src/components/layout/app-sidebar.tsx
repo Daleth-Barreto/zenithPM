@@ -8,6 +8,7 @@ import {
   User,
   ChevronDown,
   CheckSquare,
+  Navigation,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -72,31 +73,39 @@ export function AppSidebar() {
       </SidebarHeader>
       <SidebarContent>
         <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              isActive={isActive('/dashboard')}
-              tooltip={{ children: 'Panel' }}
-            >
-              <Link href="/dashboard">
-                <LayoutDashboard />
-                <span className={cn(isSidebarCollapsed && "hidden")}>Panel</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-
-           <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              isActive={isActive('/my-tasks')}
-              tooltip={{ children: 'Mis Tareas' }}
-            >
-              <Link href="/my-tasks">
-                <CheckSquare />
-                <span className={cn(isSidebarCollapsed && "hidden")}>Mis Tareas</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
+          <Collapsible defaultOpen={true}>
+              <SidebarMenuItem>
+                <CollapsibleTrigger asChild>
+                    <SidebarMenuButton className="justify-between group-data-[collapsible=icon]:justify-center">
+                        <div className="flex items-center gap-2">
+                            <Navigation />
+                            <span className={cn(isSidebarCollapsed && "hidden")}>Navegación</span>
+                        </div>
+                        <ChevronDown className={cn("h-4 w-4 transition-transform duration-200 data-[state=open]:rotate-180", isSidebarCollapsed && "hidden")} />
+                    </SidebarMenuButton>
+                </CollapsibleTrigger>
+              </SidebarMenuItem>
+              <CollapsibleContent>
+                 <SidebarMenuSub>
+                    <SidebarMenuSubItem>
+                      <SidebarMenuSubButton asChild isActive={isActive('/dashboard')}>
+                          <Link href="/dashboard">
+                            <LayoutDashboard />
+                            <span>Panel</span>
+                          </Link>
+                      </SidebarMenuSubButton>
+                    </SidebarMenuSubItem>
+                    <SidebarMenuSubItem>
+                      <SidebarMenuSubButton asChild isActive={isActive('/my-tasks')}>
+                          <Link href="/my-tasks">
+                            <CheckSquare />
+                            <span>Mis Tareas</span>
+                          </Link>
+                      </SidebarMenuSubButton>
+                    </SidebarMenuSubItem>
+                 </SidebarMenuSub>
+              </CollapsibleContent>
+          </Collapsible>
 
           <Collapsible defaultOpen={true} data-tour="sidebar-projects">
             <SidebarMenuItem>
